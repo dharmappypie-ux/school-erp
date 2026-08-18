@@ -1,0 +1,237 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   Design tokens.
+
+   Two decisions worth knowing, because they shape everything below:
+
+   1. Surfaces are WARM neutrals, not blue-grey. A school ERP is a records
+      system that people sit in front of all day; warm paper-toned greys read
+      as documents rather than as a dashboard, and they keep the one saturated
+      colour (the brand) doing actual work.
+
+   2. Data colour and status colour are separate scales that never borrow from
+      each other. `--chart-*` encodes magnitude; `--success/--warning/--danger`
+      encode state. Painting a data series in "danger red" tells the reader
+      something is wrong when it may only be low, and once the two are mixed a
+      chart cannot be read without a key.
+
+   Light is the base; dark restates the values it changes rather than inverting
+   them, because an inverted palette lands in the wrong lightness band.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces — warm neutral ramp */
+  --background: #f7f6f3;
+  --surface: #ffffff;
+  --surface-muted: #f2f1ec;
+  --surface-hover: #edece6;
+  --surface-sunken: #eeede8;
+
+  /* Ink */
+  --foreground: #1a1a17;
+  --muted: #6d6b64;
+  --muted-strong: #494741;
+  --border: #e6e4dd;
+  --border-strong: #d0cdc4;
+
+  /* Brand — deep teal. Chosen to be distinct from the data blue so a link and
+     a bar are never mistaken for each other. 4.9:1 on white. */
+  --brand: #0f6f63;
+  --brand-hover: #0b564d;
+  --brand-soft: #e6f2f0;
+  --brand-foreground: #ffffff;
+
+  /* Status — fixed roles, never used for data series. Each ships with a text
+     label in the components, so none of them carries meaning by colour alone. */
+  --success: #0f7a30;
+  --success-soft: #e8f5eb;
+  --warning: #9a6100;
+  --warning-soft: #fdf3e2;
+  --danger: #b3261e;
+  --danger-soft: #fdecea;
+  --info: #1c5cab;
+  --info-soft: #eaf1fb;
+
+  /* Data — one hue, light to dark, five ordinal steps. Validated against the
+     light surface: monotone lightness, visible gaps, light end clears 2:1. */
+  --chart-1: #86b6ef;
+  --chart-2: #5598e7;
+  --chart-3: #2a78d6;
+  --chart-4: #1c5cab;
+  --chart-5: #104281;
+  --chart-grid: #e6e4dd;
+
+  /* Typography scale */
+  --text-2xs: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.875rem;
+  --text-lg: 1rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+
+  /* Elevation — two-layer so cards sit on the page rather than float above it */
+  --shadow-sm: 0 1px 1px rgb(26 26 23 / 0.04), 0 1px 2px rgb(26 26 23 / 0.05);
+  --shadow-md: 0 1px 2px rgb(26 26 23 / 0.04), 0 6px 16px -4px rgb(26 26 23 / 0.10);
+  --shadow-lg: 0 2px 4px rgb(26 26 23 / 0.04), 0 16px 32px -8px rgb(26 26 23 / 0.14);
+
+  --ring: #0f6f63;
+  --radius: 0.625rem;
+  --radius-lg: 0.875rem;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --background: #121316;
+  --surface: #1a1b1e;
+  --surface-muted: #22242a;
+  --surface-hover: #282a31;
+  --surface-sunken: #16171a;
+
+  --foreground: #e9e8e4;
+  --muted: #9b9a95;
+  --muted-strong: #c4c2bc;
+  --border: #2b2d33;
+  --border-strong: #3d4048;
+
+  --brand: #35b3a2;
+  --brand-hover: #4fc7b7;
+  --brand-soft: #10302c;
+  --brand-foreground: #06201c;
+
+  /* Status, re-stepped for the dark surface rather than reused from light —
+     the light values sit too dark to read here. */
+  --success: #4ec26d;
+  --success-soft: #102a18;
+  --warning: #e0a52a;
+  --warning-soft: #2e2208;
+  --danger: #f08a82;
+  --danger-soft: #331512;
+  --info: #6da7ec;
+  --info-soft: #12233a;
+
+  /* Data — the same hue stepped for the dark surface and validated as its own
+     set. The order runs light to dark exactly as in light mode, so a reader
+     switching themes keeps the same "darker means more" reading. */
+  --chart-1: #cde2fb;
+  --chart-2: #9ec5f4;
+  --chart-3: #6da7ec;
+  --chart-4: #3987e5;
+  --chart-5: #256abf;
+  --chart-grid: #2b2d33;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5);
+  --shadow-md: 0 2px 4px rgb(0 0 0 / 0.4), 0 8px 20px -6px rgb(0 0 0 / 0.55);
+  --shadow-lg: 0 4px 8px rgb(0 0 0 / 0.4), 0 20px 40px -10px rgb(0 0 0 / 0.6);
+
+  --ring: #35b3a2;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-subtle: var(--surface-muted);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-strong: var(--muted-strong);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-foreground: var(--brand-foreground);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --radius-base: var(--radius);
+  --radius-card: var(--radius-lg);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  border-color: var(--border);
+}
+
+html,
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+body {
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--text-base);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Slightly tighter tracking suits the dense tabular screens. */
+  letter-spacing: -0.006em;
+}
+
+/* Headings hold their own tracking — the body value is too tight at size. */
+h1,
+h2,
+h3 {
+  letter-spacing: -0.018em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Tabular figures keep money and counts from jittering between renders. */
+.numeric {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* Table headers: small, spaced, quiet. They label the data; they are not it. */
+.th-label {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Scrollbars that match the surface instead of interrupting it. */
+@supports (scrollbar-color: auto) {
+  * {
+    scrollbar-color: var(--border-strong) transparent;
+    scrollbar-width: thin;
+  }
+}
+
+/* Respect a stated preference for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
