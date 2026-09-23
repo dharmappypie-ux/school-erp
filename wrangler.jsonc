@@ -1,0 +1,52 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vidyalaya-erp",
+  // Pinned to the drocklover Cloudflare account (this machine has two accounts).
+  "account_id": "447dbcf98a4fdc616ab1f1d03478cc9a",
+  // The OpenNext build emits the Worker entry and static assets here.
+  "main": ".open-next/worker.js",
+  // OpenNext requires nodejs_compat and a compatibility date >= 2024-09-23.
+  "compatibility_date": "2025-09-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  },
+
+  // --- Database ---------------------------------------------------------------
+  // Required: set the DATABASE_URL secret to a public Postgres connection string
+  // (`wrangler secret put DATABASE_URL`). `pg` + @prisma/adapter-pg + pg-cloudflare
+  // connect from the Worker.
+  //
+  // Optional (recommended for serverless Postgres): put Cloudflare Hyperdrive in
+  // front for edge connection pooling. src/lib/db.ts already prefers this binding
+  // automatically when it is present — no code change needed.
+  //   1. npx wrangler hyperdrive create vidyalaya-db \
+  //        --connection-string "postgres://USER:PASS@HOST:5432/DB"
+  //   2. Uncomment the block below and paste the returned id.
+  // Hyperdrive (edge connection pooling). db.ts uses it automatically when
+  // present; otherwise it uses the direct DATABASE_URL secret. Recommended once
+  // your database's connection limits suit pooling.
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "46d929be46054c778b8ac3ee00355166",
+      "localConnectionString": "postgresql://postgres@localhost:5432/school_erp"
+    }
+  ],
+
+  // --- Uploads ---------------------------------------------------------------
+  // Photos and homework attachments are stored in the database (the `uploads`
+  // table via src/lib/storage.ts) and served by the /uploads/[...path] route —
+  // no object store to provision. If uploads ever grow large, switch storage.ts
+  // to R2/S3; nothing else changes.
+
+  // Non-secret runtime config. Secrets (DATABASE_URL, ANTHROPIC_API_KEY,
+  // SESSION secrets, SMTP creds) are set with `wrangler secret put`, never here.
+  "vars": {
+    "APP_URL": "https://vidyalaya-erp.workers.dev"
+  }
+}
