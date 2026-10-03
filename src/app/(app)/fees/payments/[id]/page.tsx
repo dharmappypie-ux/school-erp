@@ -2,9 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { PrintButton } from "@/app/(app)/exams/report-cards/[id]/print-button";
+import { RefundPanel } from "@/app/(app)/fees/payments/[id]/refund-panel";
 import { Badge, Card, Td, Th, type Tone } from "@/components/ui";
 import { requirePermission } from "@/lib/auth";
 import { formatDate, formatDateTime, formatMoney, toNumber } from "@/lib/format";
+import { hasPermission } from "@/lib/permissions";
 import { scopedDb } from "@/lib/tenant";
 
 export const metadata = { title: "Receipt" };
@@ -115,6 +117,8 @@ export default async function ReceiptPage({
   const enrollment = payment.student.enrollments[0];
   const amount = toNumber(payment.amount);
   const refunded = toNumber(payment.refundedAmount);
+  const canRefund = hasPermission(session.permissions, "fees.refund");
+  const remainingRefundable = Math.max(0, amount - refunded);
 
   return (
     <>
@@ -129,6 +133,14 @@ export default async function ReceiptPage({
           <Badge tone={STATUS_TONE[payment.status] ?? "neutral"}>
             {payment.status.toLowerCase()}
           </Badge>
+          {canRefund && payment.status !== "REFUNDED" && remainingRefundable > 0 ? (
+            <RefundPanel
+              paymentId={payment.id}
+              receiptNo={payment.receiptNo}
+              maxRefundable={remainingRefundable}
+              currency={currency}
+            />
+          ) : null}
           <PrintButton />
         </div>
       </div>

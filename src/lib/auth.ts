@@ -8,6 +8,7 @@ import { hashSessionToken, readSessionToken } from "@/lib/session";
 import {
   hasAnyPermission,
   hasPermission,
+  isPlatformAdmin,
   type PermissionKey,
 } from "@/lib/permissions";
 
@@ -23,6 +24,10 @@ export interface SessionContext {
 
   roleKeys: string[];
   permissions: string[];
+
+  /** Platform owner (can create/manage schools). Gated on the PLATFORM_ADMIN
+   *  role key, not on the "*" wildcard that school super admins hold. */
+  isPlatformAdmin: boolean;
 
   school: {
     id: string;
@@ -99,6 +104,7 @@ export const getSessionContext = cache(
       mustChangePassword: user.mustChangePassword,
       roleKeys: user.roles.map((role) => role.key),
       permissions,
+      isPlatformAdmin: isPlatformAdmin(user.roles.map((role) => role.key)),
       school: {
         id: user.school.id,
         name: user.school.name,
@@ -142,6 +148,19 @@ export async function requireAnyPermission(
   const context = await requireAuth();
   if (!hasAnyPermission(context.permissions, permissions)) {
     redirect(`/forbidden?required=${encodeURIComponent(permissions.join(","))}`);
+  }
+  return context;
+}
+
+/**
+ * Session context, guaranteed to be a platform owner, or a redirect. Platform
+ * access is decided by the PLATFORM_ADMIN role key alone — a school super admin
+ * holding the "*" wildcard is NOT a platform owner and is redirected away.
+ */
+export async function requirePlatformAdmin(): Promise<SessionContext> {
+  const context = await requireAuth();
+  if (!context.isPlatformAdmin) {
+    redirect("/forbidden?required=platform.manage");
   }
   return context;
 }

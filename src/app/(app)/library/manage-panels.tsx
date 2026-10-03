@@ -1,13 +1,19 @@
 "use client";
 
 import { addBook, issueBook } from "@/app/(app)/library/actions";
+import { DrawerForm } from "@/components/drawer-form";
 import { ManageForm } from "@/components/manage-form";
 
 export function AddBook() {
   return (
-    <ManageForm
+    <DrawerForm
+      trigger="Add title"
       title="Add a title"
       description="Accession numbers are generated for each copy"
+    >
+    <ManageForm
+      bare
+      title="Add a title"
       action={addBook}
       submitLabel="Add to catalogue"
       footnote="Copies are numbered automatically so the sequence has no gaps or duplicates."
@@ -24,6 +30,7 @@ export function AddBook() {
         { name: "copies", label: "Copies", type: "number", min: "1", required: true, defaultValue: "1", half: true },
       ]}
     />
+    </DrawerForm>
   );
 }
 
@@ -37,9 +44,14 @@ export function IssueBook({
   staff: { value: string; label: string }[];
 }) {
   return (
-    <ManageForm
+    <DrawerForm
+      trigger="Issue a book"
       title="Issue a copy"
       description="To a student or a staff member"
+    >
+    <ManageForm
+      bare
+      title="Issue a copy"
       action={issueBook}
       submitLabel="Issue"
       footnote="Choose exactly one borrower — the loan has to belong to one person."
@@ -57,5 +69,6 @@ export function IssueBook({
         { name: "days", label: "Loan days", type: "number", min: "1", required: true, defaultValue: "14", half: true },
       ]}
     />
+    </DrawerForm>
   );
 }

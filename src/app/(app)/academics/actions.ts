@@ -15,6 +15,7 @@ import { scopedDb } from "@/lib/tenant";
 export interface ActionResult {
   ok: boolean;
   message: string;
+  values?: Record<string, string>;
 }
 
 const SubjectSchema = z.object({
@@ -88,6 +89,158 @@ export async function createSubject(
 
   revalidatePath("/academics");
   return { ok: true, message: `${subject.name} (${code}) added.` };
+}
+
+const ClassLevelSchema = z.object({
+  name: z.string().trim().min(1, "A class name is required").max(60),
+  numericOrder: z.coerce
+    .number({ message: "Order must be a number" })
+    .int()
+    .min(0, "Order cannot be negative")
+    .max(100),
+  stream: z.string().trim().max(40).optional(),
+});
+
+/**
+ * Creates a class level (grade). `numericOrder` is what every class-ordered
+ * list sorts on, so it must be unique enough to give a stable order; the name
+ * is unique per school by schema.
+ */
+export async function createClassLevel(
+  _prev: unknown,
+  formData: FormData,
+): Promise<ActionResult> {
+  const raw = Object.fromEntries(formData) as Record<string, string>;
+  const parsed = ClassLevelSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Invalid input", values: raw };
+  }
+
+  const session = await requirePermission("academics.manage");
+  const db = scopedDb(session.schoolId);
+
+  const clash = await db.classLevel.findFirst({
+    where: { name: parsed.data.name },
+    select: { id: true },
+  });
+  if (clash) {
+    return { ok: false, message: `A class named "${parsed.data.name}" already exists.`, values: raw };
+  }
+
+  const level = await db.classLevel.create({
+    data: {
+      schoolId: session.schoolId,
+      name: parsed.data.name,
+      numericOrder: parsed.data.numericOrder,
+      stream: parsed.data.stream || null,
+    },
+    select: { id: true, name: true },
+  });
+
+  await recordAudit({
+    schoolId: session.schoolId,
+    userId: session.userId,
+    action: "academics.classlevel.create",
+    entityType: "ClassLevel",
+    entityId: level.id,
+    after: { name: level.name, numericOrder: parsed.data.numericOrder },
+  });
+
+  revalidatePath("/academics");
+  return { ok: true, message: `Class "${level.name}" created. Add its sections next.` };
+}
+
+const SectionSchema = z.object({
+  classLevelId: z.string().min(1, "Choose a class"),
+  name: z.string().trim().min(1, "A section name is required").max(40),
+  capacity: z.coerce.number().int().min(1, "Capacity must be at least 1").max(200),
+  roomNumber: z.string().trim().max(40).optional(),
+  classTeacherId: z.string().trim().optional(),
+});
+
+/**
+ * Creates a section within a class for the current academic year. Enrolment and
+ * promotion can only target sections that exist, so this is the prerequisite
+ * for admitting or moving students into a new class.
+ */
+export async function createSection(
+  _prev: unknown,
+  formData: FormData,
+): Promise<ActionResult> {
+  const raw = Object.fromEntries(formData) as Record<string, string>;
+  const parsed = SectionSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Invalid input", values: raw };
+  }
+
+  const session = await requirePermission("academics.manage");
+  const yearId = session.academicYear?.id;
+  if (!yearId) {
+    return {
+      ok: false,
+      message: "Set up a current academic year before creating sections.",
+      values: raw,
+    };
+  }
+  const db = scopedDb(session.schoolId);
+
+  const classLevel = await db.classLevel.findUnique({
+    where: { id: parsed.data.classLevelId },
+    select: { id: true, name: true },
+  });
+  if (!classLevel) {
+    return { ok: false, message: "That class does not exist in your school.", values: raw };
+  }
+
+  if (parsed.data.classTeacherId) {
+    const teacher = await db.staffMember.findUnique({
+      where: { id: parsed.data.classTeacherId },
+      select: { id: true },
+    });
+    if (!teacher) {
+      return { ok: false, message: "That class teacher does not exist.", values: raw };
+    }
+  }
+
+  const clash = await db.section.findFirst({
+    where: { academicYearId: yearId, classLevelId: classLevel.id, name: parsed.data.name },
+    select: { id: true },
+  });
+  if (clash) {
+    return {
+      ok: false,
+      message: `${classLevel.name} already has a section "${parsed.data.name}" this year.`,
+      values: raw,
+    };
+  }
+
+  const section = await db.section.create({
+    data: {
+      schoolId: session.schoolId,
+      academicYearId: yearId,
+      classLevelId: classLevel.id,
+      name: parsed.data.name,
+      capacity: parsed.data.capacity,
+      roomNumber: parsed.data.roomNumber || null,
+      classTeacherId: parsed.data.classTeacherId || null,
+    },
+    select: { id: true, name: true },
+  });
+
+  await recordAudit({
+    schoolId: session.schoolId,
+    userId: session.userId,
+    action: "academics.section.create",
+    entityType: "Section",
+    entityId: section.id,
+    after: { classLevel: classLevel.name, name: section.name, capacity: parsed.data.capacity },
+  });
+
+  revalidatePath("/academics");
+  return {
+    ok: true,
+    message: `${classLevel.name} ${section.name} created with ${parsed.data.capacity} seats.`,
+  };
 }
 
 const AssignSchema = z.object({

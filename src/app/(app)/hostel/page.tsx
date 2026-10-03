@@ -171,6 +171,36 @@ export default async function HostelPage() {
       <PageHeader
         title="Hostel"
         description={`${hostels.length} blocks · ${totalResidents} residents in ${totalBeds} beds`}
+        action={
+          canManage ? (
+            <div className="flex flex-wrap gap-2">
+              <AddBlock
+                wardens={possibleWardens.map((warden) => ({
+                  value: warden.id,
+                  label: `${warden.firstName} ${warden.lastName}`,
+                }))}
+              />
+              <AddRoom
+                blocks={panelBlocks.map((block) => ({
+                  value: block.id,
+                  label: `${block.name} (${block.type.toLowerCase()})`,
+                }))}
+              />
+              <AllocateRoom
+                rooms={roomsWithSpace.map((room) => ({
+                  value: room.id,
+                  label: `${room.hostel.name} · ${room.roomNumber} — ${room.capacity - room._count.allocations} free`,
+                }))}
+                students={unhousedStudents.map((student) => ({
+                  value: student.id,
+                  label: `${student.firstName} ${student.lastName} (${student.admissionNo}${
+                    student.gender ? `, ${student.gender.toLowerCase()}` : ", gender not recorded"
+                  })`,
+                }))}
+              />
+            </div>
+          ) : undefined
+        }
       />
 
       {misplaced.length > 0 ? (
@@ -359,40 +389,6 @@ export default async function HostelPage() {
         gender on record, or recorded as other, needs an explicit placement
         decision rather than an automatic one.
       </p>
-      {canManage ? (
-        <>
-          <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <AddBlock
-              wardens={possibleWardens.map((warden) => ({
-                value: warden.id,
-                label: `${warden.firstName} ${warden.lastName}`,
-              }))}
-            />
-            <AddRoom
-              blocks={panelBlocks.map((block) => ({
-                value: block.id,
-                label: `${block.name} (${block.type.toLowerCase()})`,
-              }))}
-            />
-          </div>
-
-          <div className="mt-4">
-            <AllocateRoom
-              rooms={roomsWithSpace.map((room) => ({
-                value: room.id,
-                label: `${room.hostel.name} · ${room.roomNumber} — ${room.capacity - room._count.allocations} free`,
-              }))}
-              students={unhousedStudents.map((student) => ({
-                value: student.id,
-                label: `${student.firstName} ${student.lastName} (${student.admissionNo}${
-                  student.gender ? `, ${student.gender.toLowerCase()}` : ", gender not recorded"
-                })`,
-              }))}
-            />
-          </div>
-        </>
-      ) : null}
-
     </>
   );
 }

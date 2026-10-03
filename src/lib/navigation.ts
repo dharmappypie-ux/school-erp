@@ -35,6 +35,9 @@ export const ICONS: Record<string, string> = {
   comms: "M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM7 9h10v2H7V9zm7 5H7v-2h7v2zm3-6H7V6h10v2z",
   analytics: "M5 9.2h3V19H5V9.2zM10.6 5h2.8v14h-2.8V5zm5.6 8H19v6h-2.8v-6z",
   ai: "M12 2 9.5 8.5 3 11l6.5 2.5L12 20l2.5-6.5L21 11l-6.5-2.5L12 2z",
+  courses: "M4 6a2 2 0 0 1 2-2h5v15H6a2 2 0 0 0-2 2V6zm16 0a2 2 0 0 0-2-2h-5v15h5a2 2 0 0 1 2 2V6z",
+  inventory: "M20 8h-3V4H3v13h2a3 3 0 0 0 6 0h4a3 3 0 0 0 6 0h1v-5l-3-4zM6 18.5A1.5 1.5 0 1 1 6 15.5a1.5 1.5 0 0 1 0 3zm12-8V9.5h1.5l1.96 2.5H18zm0 8a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z",
+  quiz: "M11 18h2v-2h-2v2zm1-16A10 10 0 1 0 12 22 10 10 0 0 0 12 2zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm0-13a3.5 3.5 0 0 0-3.5 3.5h2A1.5 1.5 0 1 1 12 12c-1 0-1 .8-1 1.5V15h2v-1c1.2-.4 2-1.5 2-2.5A3.5 3.5 0 0 0 12 7z",
   settings:
     "M19.14 12.94a7.07 7.07 0 0 0 0-1.88l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.62-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.58.24-1.12.55-1.62.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.84a.5.5 0 0 0 .12.64l2.03 1.58a7.07 7.07 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.31.6.22l2.39-.96c.5.39 1.04.7 1.62.94l.36 2.54c.04.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54c.58-.24 1.12-.55 1.62-.94l2.39.96c.22.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z",
   portal: "M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z",
@@ -54,6 +57,10 @@ export const PORTAL_NAV: NavGroup[] = [
       { label: "Results", href: "/portal/results", permissions: ["portal.access"], icon: "exams" },
       { label: "Fees", href: "/portal/fees", permissions: ["portal.access"], icon: "fees" },
       { label: "Homework", href: "/portal/homework", permissions: ["portal.access"], icon: "admissions" },
+      { label: "Courses", href: "/portal/courses", permissions: ["portal.access"], icon: "courses" },
+      { label: "Quizzes", href: "/portal/quizzes", permissions: ["portal.access"], icon: "quiz" },
+      { label: "Learning plan", href: "/portal/learning-plan", permissions: ["portal.access"], icon: "ai" },
+      { label: "Messages", href: "/messages", permissions: ["messages.use"], icon: "comms" },
     ],
   },
 ];
@@ -76,11 +83,13 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Academics",
     items: [
-      { label: "Classes & subjects", href: "/academics", permissions: ["academics.read"], icon: "academics" },
+      { label: "Classes & subjects", href: "/academics", permissions: ["academics.read"], icon: "academics", exact: true },
       { label: "Attendance", href: "/attendance", permissions: ["attendance.read"], icon: "attendance" },
       { label: "Timetable", href: "/timetable", permissions: ["timetable.read"], icon: "timetable" },
       { label: "Examinations", href: "/exams", permissions: ["exams.read", "marks.read"], icon: "exams" },
       { label: "Homework", href: "/homework", permissions: ["homework.read"], icon: "admissions" },
+      { label: "Courses", href: "/academics/courses", permissions: ["lms.read"], icon: "courses" },
+      { label: "Quizzes", href: "/quizzes", permissions: ["quiz.read"], icon: "quiz" },
     ],
   },
   {
@@ -97,6 +106,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Transport", href: "/transport", permissions: ["transport.read"], icon: "transport" },
       { label: "Library", href: "/library", permissions: ["library.read"], icon: "library" },
       { label: "Hostel", href: "/hostel", permissions: ["hostel.read"], icon: "hostel" },
+      { label: "Inventory", href: "/inventory", permissions: ["inventory.read"], icon: "inventory" },
       { label: "Leave", href: "/leave", permissions: ["leave.read", "leave.apply"], icon: "hr" },
     ],
   },
@@ -128,6 +138,20 @@ export const NAV_GROUPS: NavGroup[] = [
 ];
 
 /**
+ * Platform-owner navigation. Sits above any single school and is shown only to
+ * holders of the PLATFORM_ADMIN role key — never via a permission, since the
+ * "*" wildcard every school super admin holds must not unlock it.
+ */
+export const PLATFORM_NAV: NavGroup[] = [
+  {
+    label: "Platform",
+    items: [
+      { label: "Schools", href: "/platform", permissions: [], icon: "settings", exact: true },
+    ],
+  },
+];
+
+/**
  * Trims the navigation to what this user may actually open.
  *
  * A user holding both a staff role and a portal role (a teacher whose own
@@ -144,11 +168,18 @@ export function visibleNavigation(
    */
   hasPortalRecord = false,
 ): NavGroup[] {
+  // A pure platform owner is not a school staff user — they see only the
+  // Platform group, never a school's dashboard or modules.
   const isStaffUser = roleKeys.some(
-    (key) => key !== "STUDENT" && key !== "PARENT",
+    (key) => key !== "STUDENT" && key !== "PARENT" && key !== "PLATFORM_ADMIN",
   );
 
   const groups: NavGroup[] = [];
+
+  // Platform owners see the cross-tenant Schools area first.
+  if (roleKeys.includes("PLATFORM_ADMIN")) {
+    groups.push(...PLATFORM_NAV);
+  }
 
   if (hasPortalRecord && hasAnyPermission(permissions, ["portal.access"])) {
     groups.push(...PORTAL_NAV);

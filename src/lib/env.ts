@@ -60,12 +60,12 @@ export const env = {
     webhookSecret: str("STRIPE_WEBHOOK_SECRET", ""),
   },
 
-  smtp: {
-    host: str("SMTP_HOST", ""),
-    port: num("SMTP_PORT", 587),
-    user: str("SMTP_USER", ""),
-    password: str("SMTP_PASSWORD", ""),
-    from: str("SMTP_FROM", "no-reply@school.local"),
+  // Email is sent over HTTP (Resend) so it runs on the edge / Cloudflare
+  // Workers, where SMTP sockets are unavailable. `from` must be a verified
+  // sender on the Resend account.
+  email: {
+    apiKey: str("RESEND_API_KEY", ""),
+    from: str("EMAIL_FROM", "Vidyalaya ERP <no-reply@vidyalaya.example>"),
   },
   msg91: {
     authKey: str("MSG91_AUTH_KEY", ""),

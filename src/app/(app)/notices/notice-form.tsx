@@ -44,8 +44,11 @@ function DraftButton() {
 
 export function NoticeForm({
   sections,
+  bare = false,
 }: {
   sections: { id: string; label: string }[];
+  /** Drop the form's own padding when it lives inside a drawer body. */
+  bare?: boolean;
 }) {
   const [state, formAction] = useActionState<NoticeState, FormData>(createNotice, {
     ok: false,
@@ -65,7 +68,7 @@ export function NoticeForm({
   }
 
   return (
-    <form action={formAction} className="space-y-4 px-5 py-5">
+    <form action={formAction} className={bare ? "space-y-4" : "space-y-4 px-5 py-5"}>
       {state.message ? (
         <Alert tone={state.ok ? "success" : "danger"}>{state.message}</Alert>
       ) : null}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { AddUser, UserRowActions } from "@/app/(app)/settings/users/user-panels";
 import { Avatar } from "@/components/avatar";
 import { FilterSelect, Pagination, SearchBox } from "@/components/data-controls";
 import {
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui";
 import { requirePermission } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
+import { hasPermission } from "@/lib/permissions";
 import { scopedDb } from "@/lib/tenant";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -25,10 +27,9 @@ const PAGE_SIZE = 25;
 
 const STATUS_TONE: Record<string, Tone> = {
   ACTIVE: "success",
-  INVITED: "info",
+  PENDING_VERIFICATION: "info",
   SUSPENDED: "danger",
-  LOCKED: "danger",
-  DISABLED: "neutral",
+  INACTIVE: "neutral",
 };
 
 export default async function UsersPage({ searchParams }: PageProps<"/settings/users">) {
@@ -88,15 +89,27 @@ export default async function UsersPage({ searchParams }: PageProps<"/settings/u
 
   const neverSignedIn = users.filter((user) => !user.lastLoginAt).length;
 
+  const canCreate = hasPermission(session.permissions, "users.create");
+  const canManageUsers =
+    hasPermission(session.permissions, "roles.manage") ||
+    hasPermission(session.permissions, "users.update");
+  // The platform-owner role is never assignable from within a school.
+  const roleOptions = roles
+    .filter((role) => role.key !== "PLATFORM_ADMIN")
+    .map((role) => ({ value: role.key, label: role.name }));
+
   return (
     <>
       <PageHeader
         title="Users & roles"
         description="Every login issued for this school"
         action={
-          <Link href="/settings" className="text-xs font-medium text-brand">
-            Back to settings
-          </Link>
+          <div className="flex items-center gap-3">
+            {canCreate ? <AddUser roles={roleOptions} /> : null}
+            <Link href="/settings" className="text-xs font-medium text-brand">
+              Back to settings
+            </Link>
+          </div>
         }
       />
 
@@ -157,6 +170,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/settings/u
                   <Th>Contact</Th>
                   <Th>Last signed in</Th>
                   <Th>Status</Th>
+                  {canManageUsers ? <Th /> : null}
                 </tr>
               </thead>
               <tbody>
@@ -225,6 +239,18 @@ export default async function UsersPage({ searchParams }: PageProps<"/settings/u
                         {user.status.toLowerCase()}
                       </Badge>
                     </Td>
+                    {canManageUsers ? (
+                      <Td className="text-right">
+                        <UserRowActions
+                          userId={user.id}
+                          userName={`${user.firstName} ${user.lastName ?? ""}`.trim()}
+                          currentRoleKey={user.roles[0]?.key ?? ""}
+                          status={user.status}
+                          isSelf={user.id === session.userId}
+                          roles={roleOptions}
+                        />
+                      </Td>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>
@@ -262,9 +288,10 @@ export default async function UsersPage({ searchParams }: PageProps<"/settings/u
       </Card>
 
       <p className="mt-3 text-xs text-muted">
-        Accounts are read-only here. Creating a login, changing a role or
-        resetting a password each need their own guarded flow rather than an
-        inline edit — see the README for what is still to build.
+        Use “Add user” to issue a login, or “Manage” on a row to change a role,
+        reset a password, or suspend/deactivate access. One-time passwords are
+        shown once, at the moment they are generated. A school can never be left
+        with no active super admin.
       </p>
     </>
   );

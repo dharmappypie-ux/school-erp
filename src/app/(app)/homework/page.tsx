@@ -18,6 +18,7 @@ import { requirePermission } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
 import { daysUntilDue, progressOf } from "@/lib/homework";
 import { hasPermission } from "@/lib/permissions";
+import { teacherSectionIds } from "@/lib/teacher-scope";
 import { scopedDb } from "@/lib/tenant";
 
 export const metadata = { title: "Homework" };
@@ -69,6 +70,15 @@ export default async function HomeworkPage({ searchParams }: PageProps<"/homewor
       select: { id: true, name: true },
     }),
   ]);
+
+  // Put the teacher's own classes at the top of the "Set homework" picker.
+  const mySectionIds = await teacherSectionIds(db, session.staffId, yearId);
+  const orderedSections =
+    mySectionIds.size > 0
+      ? [...sections].sort(
+          (a, b) => (mySectionIds.has(a.id) ? 0 : 1) - (mySectionIds.has(b.id) ? 0 : 1),
+        )
+      : sections;
 
   const now = new Date();
   const rows = homework.map((item) => ({
@@ -201,9 +211,11 @@ export default async function HomeworkPage({ searchParams }: PageProps<"/homewor
 
         {canManage ? (
           <NewAssignment
-            sections={sections.map((s) => ({
+            sections={orderedSections.map((s) => ({
               id: s.id,
-              label: `${s.classLevel.name} ${s.name}`,
+              label: `${s.classLevel.name} ${s.name}${
+                mySectionIds.has(s.id) ? " · my class" : ""
+              }`,
             }))}
             subjects={subjects}
           />

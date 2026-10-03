@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { CurriculumEditor } from "@/app/(app)/academics/curriculum-editor";
+import { AddClassLevel, AddSection } from "@/app/(app)/academics/setup-panels";
 import {
   Alert,
   Badge,
@@ -162,6 +163,20 @@ export default async function AcademicsPage() {
       <PageHeader
         title="Classes & subjects"
         description={`${classLevels.length} classes · ${totalSections} sections · ${subjects.length} subjects`}
+        action={
+          canManage ? (
+            <div className="flex flex-wrap gap-2">
+              <AddClassLevel />
+              <AddSection
+                classLevels={classLevels.map((level) => ({ value: level.id, label: level.name }))}
+                teachers={teachers.map((teacher) => ({
+                  value: teacher.id,
+                  label: `${teacher.firstName} ${teacher.lastName ?? ""}`.trim(),
+                }))}
+              />
+            </div>
+          ) : undefined
+        }
       />
 
       {overAllocated.length > 0 ? (

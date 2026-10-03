@@ -1,12 +1,10 @@
 "use server";
 
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
-
 import { recordAudit } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { resolvePortalStudent } from "@/lib/portal";
+import { saveUpload } from "@/lib/storage";
 import { scopedDb } from "@/lib/tenant";
 import {
   ALLOWED_DOCUMENT_TYPES,
@@ -56,12 +54,9 @@ async function storeUpload(
 
   const extension = ALLOWED_DOCUMENT_TYPES[sniffed];
   const filename = safeFileName(recordId, extension);
-  const directory = path.join(process.cwd(), "public", "uploads", DIRECTORY);
 
-  await mkdir(directory, { recursive: true });
-  await writeFile(path.join(directory, filename), bytes);
-
-  return { ok: true, url: `/uploads/${DIRECTORY}/${filename}` };
+  const url = await saveUpload(DIRECTORY, filename, bytes, sniffed);
+  return { ok: true, url };
 }
 
 /** Attaches a worksheet to an assignment. Teacher side. */

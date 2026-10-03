@@ -44,3 +44,12 @@ next-env.d.ts
 
 # Locally stored uploads (use object storage in production)
 /public/uploads
+
+# Cloudflare Workers / OpenNext
+.open-next/
+.wrangler/
+worker-configuration.d.ts
+.dev.vars
+
+# Edge Prisma client (generated for the Workers build)
+/src/generated/prisma-workerd

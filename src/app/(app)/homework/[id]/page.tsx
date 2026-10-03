@@ -2,8 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { GradeRow } from "@/app/(app)/homework/[id]/grade-row";
+import { OriginalityPanel } from "@/app/(app)/homework/[id]/originality-panel";
 import { Worksheet } from "@/app/(app)/homework/[id]/worksheet";
 import { WorksheetBuilder } from "@/app/(app)/homework/[id]/worksheet-builder";
+import type { OriginalityFlag } from "@/lib/ai/originality";
 import { autoMarkableShare } from "@/lib/worksheet";
 import { Avatar } from "@/components/avatar";
 import {
@@ -79,6 +81,10 @@ export default async function AssignmentPage({ params }: PageProps<"/homework/[i
           },
           feedback: true,
           gradedAt: true,
+          originalityScore: true,
+          originalityFlag: true,
+          originalityNote: true,
+          originalityCheckedAt: true,
           student: {
             select: {
               id: true,
@@ -98,6 +104,10 @@ export default async function AssignmentPage({ params }: PageProps<"/homework/[i
 
   const now = new Date();
   const maxMarks = homework.maxMarks ? Number(homework.maxMarks) : null;
+  const originalityCheckedAt = homework.submissions
+    .map((submission) => submission.originalityCheckedAt)
+    .filter((value): value is Date => value !== null)
+    .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
   const questionRows = homework.questions.map((question) => ({
     id: question.id,
     sequence: question.sequence,
@@ -347,6 +357,21 @@ export default async function AssignmentPage({ params }: PageProps<"/homework/[i
           </Table>
         )}
       </Card>
+
+      {canManage ? (
+        <OriginalityPanel
+          homeworkId={homework.id}
+          checkedAt={originalityCheckedAt ? formatDateTime(originalityCheckedAt) : null}
+          rows={homework.submissions.map((submission) => ({
+            id: submission.id,
+            name: `${submission.student.firstName} ${submission.student.lastName ?? ""}`.trim(),
+            hasContent: Boolean(submission.content && submission.content.trim().length > 0),
+            flag: (submission.originalityFlag as OriginalityFlag | null) ?? null,
+            score: submission.originalityScore,
+            note: submission.originalityNote,
+          }))}
+        />
+      ) : null}
     </>
   );
 }

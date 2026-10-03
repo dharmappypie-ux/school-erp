@@ -775,6 +775,9 @@ async function seedSchool(options: SeedSchoolOptions) {
   await seedCommunication({ school, sections, subjectIds, studentRecords, teachers, principalUserId: principal.user.id });
   await seedConversations({ school, teachers, principalUserId: principal.user.id });
   await seedExpenses({ school });
+  await seedCourses({ school, classLevels, subjectIds, teachers });
+  await seedInventory({ school, createdById: principal.user.id });
+  await seedQuizzes({ school, classLevels, subjectIds, teachers, studentRecords });
 
   return { name, slug, accounts };
 }
@@ -1942,4 +1945,536 @@ async function seedExpenses(input: { school: { id: string } }) {
   }
 
   console.log(`  expenses: ${voucher} vouchers`);
+}
+
+/**
+ * A small LMS catalogue: a few published courses with lessons and resources so
+ * the Courses screens and the portal have something real to show, plus one
+ * draft to demonstrate the unpublished state.
+ */
+async function seedCourses(input: {
+  school: { id: string };
+  classLevels: { id: string; name: string; order: number }[];
+  subjectIds: Map<string, string>;
+  teachers: { id: string; name: string }[];
+}) {
+  const { school, classLevels, subjectIds, teachers } = input;
+
+  const existing = await prisma.course.count({ where: { schoolId: school.id } });
+  if (existing > 0) {
+    console.log("  courses: already seeded, skipped");
+    return;
+  }
+
+  // Pick a class by numeric order, falling back to the first available.
+  const levelByOrder = (order: number) =>
+    classLevels.find((l) => l.order === order) ?? classLevels[0];
+  const teacher = (index: number) =>
+    teachers.length > 0 ? teachers[index % teachers.length].id : null;
+
+  interface LessonSeed {
+    title: string;
+    content: string;
+    videoUrl?: string;
+    durationMinutes?: number;
+    resources?: { title: string; type: string; url: string }[];
+  }
+  interface CourseSeed {
+    title: string;
+    summary: string;
+    description: string;
+    order: number;
+    subjectCode: string;
+    teacherIndex: number;
+    status: "DRAFT" | "PUBLISHED";
+    /** When true the course targets no single class and every student sees it. */
+    schoolWide?: boolean;
+    lessons: LessonSeed[];
+    resources?: { title: string; type: string; url: string }[];
+  }
+
+  const courses: CourseSeed[] = [
+    {
+      title: "Fractions Made Simple",
+      summary: "Understand, compare and add fractions with everyday examples.",
+      description:
+        "A gentle introduction to fractions for middle school. We start from sharing a pizza and build up to adding fractions with different denominators.",
+      order: 5,
+      subjectCode: "MAT",
+      teacherIndex: 0,
+      status: "PUBLISHED",
+      lessons: [
+        {
+          title: "What is a fraction?",
+          content:
+            "A fraction represents a part of a whole. The number on top (the numerator) tells you how many parts you have; the number on the bottom (the denominator) tells you how many equal parts the whole is divided into.\n\nExample: if a pizza is cut into 4 equal slices and you eat 1, you have eaten 1/4 of the pizza.",
+          durationMinutes: 12,
+          resources: [
+            { title: "Fractions worksheet (PDF)", type: "PDF", url: "https://example.com/fractions-worksheet.pdf" },
+          ],
+        },
+        {
+          title: "Equivalent fractions",
+          content:
+            "Two fractions are equivalent if they represent the same amount, even though they look different. 1/2 is the same as 2/4 and 3/6.\n\nTo find an equivalent fraction, multiply (or divide) the top and bottom by the same number.",
+          videoUrl: "https://example.com/videos/equivalent-fractions",
+          durationMinutes: 15,
+        },
+        {
+          title: "Adding fractions",
+          content:
+            "To add fractions with the same denominator, add the numerators and keep the denominator. When the denominators differ, first rewrite them as equivalent fractions with a common denominator, then add.",
+          durationMinutes: 18,
+        },
+      ],
+      resources: [
+        { title: "Course reference sheet", type: "DOCUMENT", url: "https://example.com/fractions-reference" },
+      ],
+    },
+    {
+      title: "Introduction to Photosynthesis",
+      summary: "How green plants turn sunlight into food.",
+      description:
+        "Explore the process that powers almost all life on Earth. Covers the role of chlorophyll, the raw materials plants need, and why photosynthesis matters.",
+      order: 6,
+      subjectCode: "SCI",
+      teacherIndex: 1,
+      status: "PUBLISHED",
+      lessons: [
+        {
+          title: "The raw materials",
+          content:
+            "Plants make their own food using carbon dioxide from the air, water from the soil, and energy from sunlight captured by the green pigment chlorophyll.",
+          durationMinutes: 14,
+          resources: [
+            { title: "Leaf structure diagram", type: "IMAGE", url: "https://example.com/leaf-diagram.png" },
+          ],
+        },
+        {
+          title: "The word equation",
+          content:
+            "Carbon dioxide + water, in the presence of light and chlorophyll, produce glucose + oxygen. The glucose is the plant's food; the oxygen is released into the air.",
+          videoUrl: "https://example.com/videos/photosynthesis",
+          durationMinutes: 16,
+        },
+      ],
+    },
+    {
+      title: "Grammar Foundations",
+      summary: "Nouns, verbs and building clear sentences.",
+      description:
+        "Strengthen the building blocks of good writing. Short lessons on parts of speech and sentence construction, with practice links.",
+      order: 4,
+      subjectCode: "ENG",
+      teacherIndex: 2,
+      status: "PUBLISHED",
+      schoolWide: true,
+      lessons: [
+        {
+          title: "Nouns and verbs",
+          content:
+            "A noun names a person, place, thing or idea. A verb expresses an action or a state of being. Every complete sentence needs at least one of each.",
+          durationMinutes: 10,
+        },
+        {
+          title: "Building a sentence",
+          content:
+            "A sentence needs a subject (who or what) and a predicate (what they do). Start with a capital letter and end with a full stop, question mark or exclamation mark.",
+          durationMinutes: 12,
+          resources: [
+            { title: "Practice exercises", type: "LINK", url: "https://example.com/grammar-practice" },
+          ],
+        },
+      ],
+    },
+    {
+      title: "Algebra Basics (coming soon)",
+      summary: "An upcoming course on variables and simple equations.",
+      description:
+        "This course is still being written. It will introduce variables, expressions and one-step equations.",
+      order: 7,
+      subjectCode: "MAT",
+      teacherIndex: 0,
+      status: "DRAFT",
+      lessons: [
+        {
+          title: "Meet the variable",
+          content: "Draft lesson — content to follow.",
+          durationMinutes: 10,
+        },
+      ],
+    },
+  ];
+
+  let courseCount = 0;
+  let lessonCount = 0;
+
+  for (const spec of courses) {
+    const level = spec.schoolWide ? null : levelByOrder(spec.order);
+    const course = await prisma.course.create({
+      data: {
+        schoolId: school.id,
+        classLevelId: level?.id ?? null,
+        subjectId: subjectIds.get(spec.subjectCode) ?? null,
+        teacherId: teacher(spec.teacherIndex),
+        title: spec.title,
+        summary: spec.summary,
+        description: spec.description,
+        status: spec.status,
+        publishedAt: spec.status === "PUBLISHED" ? new Date() : null,
+      },
+    });
+    courseCount += 1;
+
+    let sequence = 0;
+    for (const lessonSpec of spec.lessons) {
+      sequence += 1;
+      await prisma.lesson.create({
+        data: {
+          courseId: course.id,
+          sequence,
+          title: lessonSpec.title,
+          content: lessonSpec.content,
+          videoUrl: lessonSpec.videoUrl ?? null,
+          durationMinutes: lessonSpec.durationMinutes ?? null,
+          resources: lessonSpec.resources
+            ? {
+                create: lessonSpec.resources.map((r) => ({
+                  courseId: course.id,
+                  title: r.title,
+                  type: r.type as never,
+                  url: r.url,
+                })),
+              }
+            : undefined,
+        },
+      });
+      lessonCount += 1;
+    }
+
+    if (spec.resources) {
+      await prisma.courseResource.createMany({
+        data: spec.resources.map((r) => ({
+          courseId: course.id,
+          title: r.title,
+          type: r.type as never,
+          url: r.url,
+        })),
+      });
+    }
+  }
+
+  console.log(`  courses: ${courseCount} (${lessonCount} lessons)`);
+}
+
+/**
+ * A starter inventory: a handful of categories and items across a school store,
+ * each opened with stock and a couple of movements so the ledger and the
+ * low-stock alerts have something realistic to show. One item is left below its
+ * reorder level and one at zero, to exercise the warning and out-of-stock paths.
+ */
+async function seedInventory(input: { school: { id: string }; createdById: string }) {
+  const { school, createdById } = input;
+
+  const existing = await prisma.inventoryItem.count({ where: { schoolId: school.id } });
+  if (existing > 0) {
+    console.log("  inventory: already seeded, skipped");
+    return;
+  }
+
+  const CATEGORIES: { name: string; description: string }[] = [
+    { name: "Stationery", description: "Paper, pens and office consumables" },
+    { name: "Lab equipment", description: "Science laboratory apparatus" },
+    { name: "Furniture", description: "Desks, chairs and fittings" },
+    { name: "Sports", description: "Sports and PE equipment" },
+    { name: "Housekeeping", description: "Cleaning and maintenance supplies" },
+  ];
+
+  const categoryIds = new Map<string, string>();
+  for (const category of CATEGORIES) {
+    const record = await prisma.inventoryCategory.create({
+      data: { schoolId: school.id, name: category.name, description: category.description },
+      select: { id: true },
+    });
+    categoryIds.set(category.name, record.id);
+  }
+
+  interface ItemSeed {
+    name: string;
+    sku: string;
+    category: string;
+    unit: string;
+    quantity: number;
+    reorderLevel: number;
+    location: string;
+    unitCost: number;
+  }
+
+  const ITEMS: ItemSeed[] = [
+    { name: "A4 paper ream", sku: "STA-001", category: "Stationery", unit: "ream", quantity: 8, reorderLevel: 10, location: "Store room A", unitCost: 280 },
+    { name: "Whiteboard marker", sku: "STA-002", category: "Stationery", unit: "piece", quantity: 120, reorderLevel: 40, location: "Store room A", unitCost: 25 },
+    { name: "Register (200 pages)", sku: "STA-003", category: "Stationery", unit: "piece", quantity: 60, reorderLevel: 20, location: "Store room A", unitCost: 90 },
+    { name: "Microscope", sku: "LAB-001", category: "Lab equipment", unit: "piece", quantity: 15, reorderLevel: 5, location: "Science lab", unitCost: 6500 },
+    { name: "Beaker 250ml", sku: "LAB-002", category: "Lab equipment", unit: "piece", quantity: 0, reorderLevel: 24, location: "Science lab", unitCost: 60 },
+    { name: "Student chair", sku: "FUR-001", category: "Furniture", unit: "piece", quantity: 340, reorderLevel: 50, location: "Warehouse", unitCost: 850 },
+    { name: "Classroom desk", sku: "FUR-002", category: "Furniture", unit: "piece", quantity: 180, reorderLevel: 40, location: "Warehouse", unitCost: 1450 },
+    { name: "Football", sku: "SPT-001", category: "Sports", unit: "piece", quantity: 12, reorderLevel: 8, location: "Sports room", unitCost: 700 },
+    { name: "Cricket ball", sku: "SPT-002", category: "Sports", unit: "piece", quantity: 6, reorderLevel: 12, location: "Sports room", unitCost: 250 },
+    { name: "Floor cleaner (5L)", sku: "HK-001", category: "Housekeeping", unit: "can", quantity: 22, reorderLevel: 10, location: "Utility store", unitCost: 420 },
+  ];
+
+  let movementCount = 0;
+
+  for (const spec of ITEMS) {
+    const item = await prisma.inventoryItem.create({
+      data: {
+        schoolId: school.id,
+        categoryId: categoryIds.get(spec.category) ?? null,
+        name: spec.name,
+        sku: spec.sku,
+        unit: spec.unit,
+        quantity: spec.quantity,
+        reorderLevel: spec.reorderLevel,
+        location: spec.location,
+        unitCost: spec.unitCost,
+      },
+      select: { id: true, quantity: true },
+    });
+
+    // Opening balance movement.
+    await prisma.stockMovement.create({
+      data: {
+        itemId: item.id,
+        type: "IN",
+        quantity: spec.quantity,
+        balanceAfter: spec.quantity,
+        note: "Opening stock",
+        createdById,
+      },
+    });
+    movementCount += 1;
+
+    // A recent issue, where there is enough to issue, so histories are not flat.
+    if (spec.quantity >= 4) {
+      const issued = Math.max(1, Math.round(spec.quantity * 0.1));
+      const balance = spec.quantity - issued;
+      await prisma.stockMovement.create({
+        data: {
+          itemId: item.id,
+          type: "OUT",
+          quantity: issued,
+          balanceAfter: balance,
+          reference: "Issued to department",
+          createdById,
+        },
+      });
+      await prisma.inventoryItem.update({ where: { id: item.id }, data: { quantity: balance } });
+      movementCount += 1;
+    }
+  }
+
+  console.log(`  inventory: ${ITEMS.length} items, ${categoryIds.size} categories (${movementCount} movements)`);
+}
+
+/**
+ * A quiz bank with a few published quizzes and one draft, plus seeded attempts
+ * so the leaderboards, points and streaks have real data. The first student is
+ * given attempts on three school-wide quizzes across three consecutive days,
+ * which shows a live streak on their portal.
+ */
+async function seedQuizzes(input: {
+  school: { id: string };
+  classLevels: { id: string; name: string; order: number }[];
+  subjectIds: Map<string, string>;
+  teachers: { id: string; name: string }[];
+  studentRecords: { id: string; classOrder: number }[];
+}) {
+  const { school, classLevels, subjectIds, teachers, studentRecords } = input;
+
+  const existing = await prisma.quiz.count({ where: { schoolId: school.id } });
+  if (existing > 0) {
+    console.log("  quizzes: already seeded, skipped");
+    return;
+  }
+
+  const teacherId = (i: number) => (teachers.length > 0 ? teachers[i % teachers.length].id : null);
+  const levelByOrder = (order: number) => classLevels.find((l) => l.order === order) ?? null;
+
+  interface Q { prompt: string; options: string[]; correct: number; points?: number; explanation?: string }
+  interface QuizSpec {
+    title: string;
+    description: string;
+    subjectCode?: string;
+    classOrder?: number; // omitted = school-wide
+    status: "DRAFT" | "PUBLISHED";
+    teacherIndex: number;
+    questions: Q[];
+  }
+
+  const SPECS: QuizSpec[] = [
+    {
+      title: "General Knowledge — Daily",
+      description: "A quick five-minute general knowledge round.",
+      status: "PUBLISHED",
+      teacherIndex: 0,
+      questions: [
+        { prompt: "What is the capital of India?", options: ["Mumbai", "New Delhi", "Kolkata", "Chennai"], correct: 1 },
+        { prompt: "How many continents are there?", options: ["Five", "Six", "Seven", "Eight"], correct: 2 },
+        { prompt: "Which planet is known as the Red Planet?", options: ["Venus", "Mars", "Jupiter", "Saturn"], correct: 1, explanation: "Mars looks red because of iron oxide (rust) on its surface." },
+        { prompt: "Who wrote India's national anthem?", options: ["Bankim Chandra", "Rabindranath Tagore", "Sarojini Naidu", "Subhas Bose"], correct: 1 },
+      ],
+    },
+    {
+      title: "Mental Maths Sprint",
+      description: "Fast arithmetic — no calculators!",
+      subjectCode: "MAT",
+      status: "PUBLISHED",
+      teacherIndex: 1,
+      questions: [
+        { prompt: "7 × 8 = ?", options: ["54", "56", "63", "48"], correct: 1 },
+        { prompt: "144 ÷ 12 = ?", options: ["10", "11", "12", "14"], correct: 2 },
+        { prompt: "15% of 200 = ?", options: ["20", "25", "30", "35"], correct: 2 },
+        { prompt: "Next prime after 13?", options: ["15", "17", "19", "21"], correct: 1 },
+      ],
+    },
+    {
+      title: "Word Power",
+      description: "Build your vocabulary.",
+      subjectCode: "ENG",
+      status: "PUBLISHED",
+      teacherIndex: 2,
+      questions: [
+        { prompt: "Synonym of 'happy'?", options: ["Sad", "Joyful", "Angry", "Tired"], correct: 1 },
+        { prompt: "Antonym of 'ancient'?", options: ["Old", "Modern", "Historic", "Aged"], correct: 1 },
+        { prompt: "Plural of 'child'?", options: ["Childs", "Childer", "Children", "Childes"], correct: 2 },
+      ],
+    },
+    {
+      title: "Science Quiz — Class 6",
+      description: "Basics of living things and matter.",
+      subjectCode: "SCI",
+      classOrder: 6,
+      status: "PUBLISHED",
+      teacherIndex: 1,
+      questions: [
+        { prompt: "Which gas do plants absorb for photosynthesis?", options: ["Oxygen", "Carbon dioxide", "Nitrogen", "Hydrogen"], correct: 1 },
+        { prompt: "The powerhouse of the cell is the…", options: ["Nucleus", "Mitochondria", "Ribosome", "Vacuole"], correct: 1 },
+        { prompt: "Water boils at what temperature at sea level?", options: ["90°C", "95°C", "100°C", "110°C"], correct: 2 },
+      ],
+    },
+    {
+      title: "Grammar Challenge (coming soon)",
+      description: "Still being written.",
+      subjectCode: "ENG",
+      status: "DRAFT",
+      teacherIndex: 2,
+      questions: [
+        { prompt: "Identify the noun: 'The dog barked loudly.'", options: ["The", "dog", "barked", "loudly"], correct: 1 },
+      ],
+    },
+  ];
+
+  const created: { id: string; classOrder?: number; status: string; questions: { id: string; correct: number; points: number }[] }[] = [];
+
+  for (const spec of SPECS) {
+    const quiz = await prisma.quiz.create({
+      data: {
+        schoolId: school.id,
+        title: spec.title,
+        description: spec.description,
+        subjectId: spec.subjectCode ? subjectIds.get(spec.subjectCode) ?? null : null,
+        classLevelId: spec.classOrder != null ? levelByOrder(spec.classOrder)?.id ?? null : null,
+        teacherId: teacherId(spec.teacherIndex),
+        status: spec.status,
+        publishedAt: spec.status === "PUBLISHED" ? new Date() : null,
+        questions: {
+          create: spec.questions.map((q, index) => ({
+            sequence: index + 1,
+            prompt: q.prompt,
+            options: q.options,
+            correctOption: q.correct,
+            points: q.points ?? 10,
+            explanation: q.explanation ?? null,
+          })),
+        },
+      },
+      select: { id: true, questions: { select: { id: true, correctOption: true, points: true, sequence: true } } },
+    });
+    created.push({
+      id: quiz.id,
+      classOrder: spec.classOrder,
+      status: spec.status,
+      questions: quiz.questions
+        .sort((a, b) => a.sequence - b.sequence)
+        .map((q) => ({ id: q.id, correct: q.correctOption, points: q.points })),
+    });
+  }
+
+  // Records one attempt: `accuracy` is the chance each answer is correct.
+  async function attempt(
+    quiz: { id: string; questions: { id: string; correct: number; points: number }[] },
+    studentId: string,
+    accuracy: number,
+    daysAgo: number,
+  ) {
+    let score = 0;
+    let totalPoints = 0;
+    const answers = quiz.questions.map((q) => {
+      totalPoints += q.points;
+      const right = Math.random() < accuracy;
+      const selected = right
+        ? q.correct
+        : (q.correct + 1 + Math.floor(Math.random() * 3)) % 4;
+      if (right) score += q.points;
+      return { questionId: q.id, selectedOption: selected, isCorrect: right, pointsAwarded: right ? q.points : 0 };
+    });
+    const when = new Date();
+    when.setDate(when.getDate() - daysAgo);
+    when.setHours(16, randomInt(0, 59), 0, 0);
+    await prisma.quizAttempt.create({
+      data: {
+        quizId: quiz.id,
+        studentId,
+        score,
+        totalPoints,
+        startedAt: when,
+        completedAt: when,
+        answers: { create: answers },
+      },
+    });
+  }
+
+  const publishedSchoolWide = created.filter((q) => q.status === "PUBLISHED" && q.classOrder == null);
+  let attempts = 0;
+
+  // The demo student (first record) gets a 3-day streak across the school-wide
+  // quizzes, and a strong score, so their portal shows points, rank and streak.
+  if (studentRecords.length > 0 && publishedSchoolWide.length >= 1) {
+    for (let i = 0; i < publishedSchoolWide.length; i += 1) {
+      await attempt(publishedSchoolWide[i], studentRecords[0].id, 0.9, publishedSchoolWide.length - 1 - i);
+      attempts += 1;
+    }
+  }
+
+  // A spread of other students attempt the school-wide quizzes today, to fill
+  // out the leaderboards with a realistic distribution of scores.
+  for (const quiz of publishedSchoolWide) {
+    for (const student of studentRecords.slice(1, 12)) {
+      if (chance(0.4)) continue;
+      await attempt(quiz, student.id, 0.4 + Math.random() * 0.5, 0);
+      attempts += 1;
+    }
+  }
+
+  // Class-targeted quizzes: only students of that class attempt them.
+  for (const quiz of created.filter((q) => q.status === "PUBLISHED" && q.classOrder != null)) {
+    const eligible = studentRecords.filter((s) => s.classOrder === quiz.classOrder).slice(0, 10);
+    for (const student of eligible) {
+      if (chance(0.4)) continue;
+      await attempt(quiz, student.id, 0.4 + Math.random() * 0.5, 0);
+      attempts += 1;
+    }
+  }
+
+  console.log(`  quizzes: ${created.length} (${attempts} attempts)`);
 }

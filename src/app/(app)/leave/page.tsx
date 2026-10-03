@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { DecideButtons } from "@/app/(app)/leave/decide-buttons";
 import { FilterSelect } from "@/components/data-controls";
@@ -41,8 +42,14 @@ export default async function LeavePage({ searchParams }: PageProps<"/leave">) {
   const canApprove = hasPermission(session.permissions, "leave.approve");
   const year = new Date().getFullYear();
 
-  // Staff without approval rights see only their own requests.
-  const ownOnly = !canApprove && session.staffId;
+  // A non-approver must be a staff member to see anything here: they may see
+  // only their own requests. A viewer who is neither an approver nor staff
+  // (e.g. a student who happens to hold leave.apply) has no business on this
+  // page — falling through would expose every staff member's leave history.
+  if (!canApprove && !session.staffId) {
+    redirect("/forbidden");
+  }
+  const ownOnly = !canApprove;
 
   const where: Prisma.LeaveRequestWhereInput = {
     ...(status ? { status: status as Prisma.EnumLeaveStatusFilter["equals"] } : {}),

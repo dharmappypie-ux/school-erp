@@ -2,10 +2,87 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useSyncExternalStore, type ReactNode } from "react";
+import {
+  useCallback,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 
+import {
+  AccountAvatar,
+  AccountDrawer,
+  type AccountFact,
+} from "@/components/account-menu";
 import { cn } from "@/components/ui";
 import { ICONS, type NavGroup } from "@/lib/navigation";
+
+const COLLAPSE_KEY = "sidebar-collapsed";
+const COLLAPSE_EVENT = "sidebar-collapse-change";
+
+function subscribeToCollapse(onChange: () => void): () => void {
+  window.addEventListener(COLLAPSE_EVENT, onChange);
+  window.addEventListener("storage", onChange); // other tabs
+  return () => {
+    window.removeEventListener(COLLAPSE_EVENT, onChange);
+    window.removeEventListener("storage", onChange);
+  };
+}
+
+function readCollapse(): boolean {
+  try {
+    return localStorage.getItem(COLLAPSE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function toggleCollapse(): void {
+  const next = !readCollapse();
+  try {
+    localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
+  } catch {
+    // Private browsing can block localStorage; the toggle still works for this
+    // page view via the dispatched event below.
+  }
+  window.dispatchEvent(new Event(COLLAPSE_EVENT));
+}
+
+// Which nav accordions are collapsed. Stored as a comma-joined list of group
+// labels; read as a stable primitive string so useSyncExternalStore is happy,
+// then parsed into a Set in the component.
+const NAV_GROUPS_KEY = "nav-collapsed-groups";
+const NAV_GROUPS_EVENT = "nav-collapsed-groups-change";
+
+function subscribeToNavGroups(onChange: () => void): () => void {
+  window.addEventListener(NAV_GROUPS_EVENT, onChange);
+  window.addEventListener("storage", onChange);
+  return () => {
+    window.removeEventListener(NAV_GROUPS_EVENT, onChange);
+    window.removeEventListener("storage", onChange);
+  };
+}
+
+function readNavGroupsRaw(): string {
+  try {
+    return localStorage.getItem(NAV_GROUPS_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function toggleNavGroup(label: string): void {
+  const set = new Set(readNavGroupsRaw().split(",").filter(Boolean));
+  if (set.has(label)) set.delete(label);
+  else set.add(label);
+  try {
+    localStorage.setItem(NAV_GROUPS_KEY, [...set].join(","));
+  } catch {
+    // Ignore — the toggle still works for this page view.
+  }
+  window.dispatchEvent(new Event(NAV_GROUPS_EVENT));
+}
 
 function Icon({ name, className }: { name: string; className?: string }) {
   return (
@@ -78,68 +155,175 @@ function ThemeToggle() {
 export function AppShell({
   navigation,
   user,
+  account,
   school,
   academicYear,
   children,
 }: {
   navigation: NavGroup[];
-  user: { name: string; email: string; initials: string; roles: string[] };
+  user: {
+    name: string;
+    email: string;
+    initials: string;
+    roleLabel: string;
+    avatarUrl: string | null;
+  };
+  account: {
+    facts: AccountFact[];
+    profileHref: string | null;
+    profileLabel: string | null;
+  };
   school: { name: string; slug: string };
   academicYear: string | null;
   children: ReactNode;
 }) {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
 
-  const sidebar = (
+  // The collapse preference lives in localStorage, read through
+  // useSyncExternalStore — the same idiom this shell uses for the theme. That
+  // keeps the source of truth outside React state (so there's no setState in an
+  // effect) and lets the server snapshot default to expanded without a
+  // hydration mismatch.
+  const collapsed = useSyncExternalStore(
+    subscribeToCollapse,
+    readCollapse,
+    () => false,
+  );
+
+  // Accordion state for the nav groups — a primitive string from the store,
+  // parsed once per change into a Set the render can test against.
+  const navGroupsRaw = useSyncExternalStore(
+    subscribeToNavGroups,
+    readNavGroupsRaw,
+    () => "",
+  );
+  const collapsedGroups = useMemo(
+    () => new Set(navGroupsRaw.split(",").filter(Boolean)),
+    [navGroupsRaw],
+  );
+
+  // Stable so the drawer's focus-restore effect doesn't re-run every render.
+  const closeAccount = useCallback(() => setAccountOpen(false), []);
+
+  // `mini` collapses the sidebar to icons; only the desktop rail uses it, the
+  // mobile drawer always shows the full sidebar.
+  const renderSidebar = (mini: boolean) => (
     <nav className="scroll-slim flex h-full flex-col overflow-y-auto">
-      <div className="flex items-center gap-2.5 px-4 py-4">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-sm font-semibold text-white">
+      <div
+        className={cn(
+          "flex items-center gap-2.5 px-4 py-4",
+          mini ? "justify-center px-0" : "",
+        )}
+      >
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand text-sm font-semibold text-white">
           {school.name.charAt(0)}
         </span>
-        <span className="min-w-0">
-          <span className="block truncate text-sm font-semibold">
-            {school.name}
+        {!mini ? (
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold">
+              {school.name}
+            </span>
+            <span className="block truncate text-[11px] text-muted">
+              {academicYear ? `AY ${academicYear}` : "No academic year set"}
+            </span>
           </span>
-          <span className="block truncate text-[11px] text-muted">
-            {academicYear ? `AY ${academicYear}` : "No academic year set"}
-          </span>
-        </span>
+        ) : null}
       </div>
 
-      <div className="flex-1 space-y-5 px-2.5 pb-6">
-        {navigation.map((group) => (
+      <div className={cn("flex-1 space-y-5 pb-6", mini ? "px-2" : "px-2.5")}>
+        {navigation.map((group) => {
+          // Accordions only apply to the expanded rail; the collapsed icon rail
+          // has no group headers to toggle, so its items always show.
+          const groupCollapsed = !mini && collapsedGroups.has(group.label);
+          return (
           <div key={group.label}>
-            <p className="px-2.5 pb-1.5 text-[10px] font-semibold tracking-wider text-muted uppercase">
-              {group.label}
-            </p>
-            <ul className="space-y-0.5">
+            {!mini ? (
+              <button
+                type="button"
+                onClick={() => toggleNavGroup(group.label)}
+                aria-expanded={!groupCollapsed}
+                className="flex w-full items-center justify-between rounded-[var(--radius-base)] px-2.5 pb-1.5 pt-0.5 text-left transition-colors hover:text-muted-strong"
+              >
+                <span className="text-[10px] font-semibold tracking-wider text-muted uppercase">
+                  {group.label}
+                </span>
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                  className={cn(
+                    "h-3 w-3 fill-current text-muted transition-transform",
+                    groupCollapsed ? "-rotate-90" : "",
+                  )}
+                >
+                  <path d="M7 10l5 5 5-5z" />
+                </svg>
+              </button>
+            ) : (
+              <div className="mx-2 mb-1.5 border-t border-border" aria-hidden />
+            )}
+            <ul className={cn("space-y-0.5", groupCollapsed ? "hidden" : "")}>
               {group.items.map((item) => {
                 const active = isActive(pathname, item.href, item.exact);
                 return (
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      // Dismiss the mobile drawer on navigation. Handled here
-                      // rather than in an effect on `pathname`.
-                      onClick={() => setOpen(false)}
+                      onClick={() => setNavOpen(false)}
                       aria-current={active ? "page" : undefined}
+                      // In the collapsed rail the label is visual-only-hidden,
+                      // so the accessible name comes from the title + aria-label.
+                      title={mini ? item.label : undefined}
+                      aria-label={mini ? item.label : undefined}
                       className={cn(
-                        "flex items-center gap-2.5 rounded-[var(--radius-base)] px-2.5 py-2 text-[13px] transition-colors",
+                        "flex items-center rounded-[var(--radius-base)] text-[13px] transition-colors",
+                        mini ? "justify-center px-0 py-2.5" : "gap-2.5 px-2.5 py-2",
                         active
                           ? "bg-brand-soft font-medium text-brand"
                           : "text-muted-strong hover:bg-surface-hover hover:text-foreground",
                       )}
                     >
                       <Icon name={item.icon} />
-                      <span className="truncate">{item.label}</span>
+                      {!mini ? <span className="truncate">{item.label}</span> : null}
                     </Link>
                   </li>
                 );
               })}
             </ul>
           </div>
-        ))}
+          );
+        })}
+      </div>
+
+      {/* Account, pinned at the foot of the sidebar (Zoho-style). Opens the
+          same drawer as the mobile header avatar. */}
+      <div className="border-t border-border p-2">
+        <button
+          type="button"
+          onClick={() => {
+            setNavOpen(false);
+            setAccountOpen(true);
+          }}
+          aria-label="Account menu"
+          aria-haspopup="dialog"
+          className={cn(
+            "flex w-full items-center rounded-[var(--radius-base)] transition-colors hover:bg-surface-hover",
+            mini ? "justify-center p-1.5" : "gap-2.5 p-2",
+          )}
+        >
+          <AccountAvatar initials={user.initials} avatarUrl={user.avatarUrl} />
+          {!mini ? (
+            <span className="min-w-0 flex-1 text-left">
+              <span className="block truncate text-[13px] font-medium">
+                {user.name}
+              </span>
+              <span className="block truncate text-[11px] text-muted">
+                {user.roleLabel}
+              </span>
+            </span>
+          ) : null}
+        </button>
       </div>
     </nav>
   );
@@ -147,21 +331,44 @@ export function AppShell({
   return (
     <div className="flex min-h-screen">
       {/* Desktop sidebar */}
-      <aside className="no-print sticky top-0 hidden h-screen w-60 shrink-0 border-r border-border bg-surface lg:block">
-        {sidebar}
+      <aside
+        className={cn(
+          "no-print sticky top-0 hidden h-screen shrink-0 border-r border-border bg-surface transition-[width] duration-200 lg:block",
+          collapsed ? "w-16" : "w-60",
+        )}
+      >
+        <div className="relative h-full">
+          {renderSidebar(collapsed)}
+          {/* Collapse toggle — sits on the rail's edge, desktop only. */}
+          <button
+            type="button"
+            onClick={toggleCollapse}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-pressed={collapsed}
+            className="absolute -right-3 top-5 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface text-muted-strong shadow-[var(--shadow-sm)] hover:bg-surface-hover"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden
+              className={cn("h-3.5 w-3.5 fill-current transition-transform", collapsed ? "rotate-180" : "")}
+            >
+              <path d="M14 7l-5 5 5 5z" />
+            </svg>
+          </button>
+        </div>
       </aside>
 
       {/* Mobile drawer */}
-      {open ? (
+      {navOpen ? (
         <div className="no-print fixed inset-0 z-40 lg:hidden">
           <button
             type="button"
             aria-label="Close navigation"
             className="absolute inset-0 bg-black/40"
-            onClick={() => setOpen(false)}
+            onClick={() => setNavOpen(false)}
           />
           <aside className="absolute inset-y-0 left-0 w-64 border-r border-border bg-surface">
-            {sidebar}
+            {renderSidebar(false)}
           </aside>
         </div>
       ) : null}
@@ -170,7 +377,7 @@ export function AppShell({
         <header className="no-print sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-surface/85 px-4 backdrop-blur">
           <button
             type="button"
-            onClick={() => setOpen(true)}
+            onClick={() => setNavOpen(true)}
             aria-label="Open navigation"
             className="rounded-[var(--radius-base)] border border-border p-2 text-muted-strong lg:hidden"
           >
@@ -183,33 +390,45 @@ export function AppShell({
 
           <ThemeToggle />
 
-          <div className="flex items-center gap-2.5 border-l border-border pl-3">
-            <div className="hidden text-right sm:block">
-              <p className="text-[13px] leading-tight font-medium">{user.name}</p>
-              <p className="text-[11px] leading-tight text-muted">
-                {user.roles.join(", ")}
-              </p>
-            </div>
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand">
-              {user.initials}
+          {/* Account is reachable from the top-right on every viewport — the
+              quickest place to reach it — and also from the sidebar foot; both
+              open the same drawer. */}
+          <button
+            type="button"
+            onClick={() => setAccountOpen(true)}
+            aria-label="Account menu"
+            aria-haspopup="dialog"
+            className="flex items-center gap-2 rounded-full py-0.5 pr-0.5 pl-2 transition-colors hover:bg-surface-hover"
+          >
+            <span className="hidden text-right sm:block">
+              <span className="block text-[13px] leading-tight font-medium">
+                {user.name}
+              </span>
+              <span className="block text-[11px] leading-tight text-muted">
+                {user.roleLabel}
+              </span>
             </span>
-            <form action="/api/auth/logout" method="post">
-              <button
-                type="submit"
-                title="Sign out"
-                aria-label="Sign out"
-                className="rounded-[var(--radius-base)] border border-border p-2 text-muted-strong hover:bg-surface-hover"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4 fill-current">
-                  <path d="M17 7l-1.4 1.4L18.2 11H8v2h10.2l-2.6 2.6L17 17l5-5-5-5zM4 5h8V3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8v-2H4V5z" />
-                </svg>
-              </button>
-            </form>
-          </div>
+            <AccountAvatar initials={user.initials} avatarUrl={user.avatarUrl} />
+          </button>
         </header>
 
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       </div>
+
+      <AccountDrawer
+        open={accountOpen}
+        onClose={closeAccount}
+        name={user.name}
+        email={user.email}
+        initials={user.initials}
+        avatarUrl={user.avatarUrl}
+        roleLabel={user.roleLabel}
+        facts={account.facts}
+        profileHref={account.profileHref}
+        profileLabel={account.profileLabel}
+        school={{ name: school.name }}
+        academicYear={academicYear}
+      />
     </div>
   );
 }

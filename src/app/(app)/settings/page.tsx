@@ -1,3 +1,4 @@
+import { AddAcademicYear, MakeCurrentButton } from "@/app/(app)/settings/year-panels";
 import { Avatar } from "@/components/avatar";
 import {
   Badge,
@@ -27,9 +28,11 @@ const STATUS_TONE: Record<string, Tone> = {
 };
 
 export default async function SettingsPage() {
-  const session = await requirePermission("settings.read");
+  const session = await requirePermission("school.read");
   const db = scopedDb(session.schoolId);
   const canAudit = hasPermission(session.permissions, "audit.read");
+  const canReadUsers = hasPermission(session.permissions, "users.read");
+  const canManageYears = hasPermission(session.permissions, "academicyear.manage");
 
   const [school, roles, users, years, audit, userCount] = await Promise.all([
     db.school.findUnique({
@@ -48,15 +51,17 @@ export default async function SettingsPage() {
         _count: { select: { users: true } },
       },
     }),
-    db.user.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 25,
-      select: {
-        id: true, firstName: true, lastName: true, email: true,
-        status: true, lastLoginAt: true,
-        roles: { select: { name: true } },
-      },
-    }),
+    canReadUsers
+      ? db.user.findMany({
+          orderBy: { createdAt: "desc" },
+          take: 25,
+          select: {
+            id: true, firstName: true, lastName: true, email: true,
+            status: true, lastLoginAt: true,
+            roles: { select: { name: true } },
+          },
+        })
+      : [],
     db.academicYear.findMany({
       orderBy: { startDate: "desc" },
       select: {
@@ -82,6 +87,7 @@ export default async function SettingsPage() {
       <PageHeader
         title="Settings"
         description="School profile, roles, users and history"
+        action={canManageYears ? <AddAcademicYear /> : undefined}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -156,8 +162,12 @@ export default async function SettingsPage() {
                       {formatDate(year.startDate)} – {formatDate(year.endDate)}
                     </Td>
                     <Td className="numeric text-right">{year._count.sections}</Td>
-                    <Td>
-                      {year.isCurrent ? <Badge tone="success">current</Badge> : null}
+                    <Td className="text-right">
+                      {year.isCurrent ? (
+                        <Badge tone="success">current</Badge>
+                      ) : canManageYears ? (
+                        <MakeCurrentButton yearId={year.id} />
+                      ) : null}
                     </Td>
                   </tr>
                 ))}
@@ -209,7 +219,16 @@ export default async function SettingsPage() {
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader title="Users" description="25 most recently created" />
+          <CardHeader
+            title="Users"
+            description={canReadUsers ? "25 most recently created" : undefined}
+          />
+          {!canReadUsers ? (
+            <EmptyState
+              title="Not visible to you"
+              description="Viewing users needs the users.read permission."
+            />
+          ) : (
           <Table>
             <thead>
               <tr>
@@ -257,6 +276,7 @@ export default async function SettingsPage() {
               ))}
             </tbody>
           </Table>
+          )}
         </Card>
 
         <Card>

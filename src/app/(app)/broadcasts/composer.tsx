@@ -27,8 +27,11 @@ const CHANNELS = [
 
 export function Composer({
   sections,
+  bare = false,
 }: {
   sections: { id: string; label: string }[];
+  /** Drop the outer padding when the composer lives inside a drawer body. */
+  bare?: boolean;
 }) {
   const [audience, setAudience] = useState("ALL_PARENTS");
   const [channel, setChannel] = useState("SMS");
@@ -66,7 +69,7 @@ export function Composer({
   }
 
   return (
-    <div className="space-y-4 px-5 py-5">
+    <div className={bare ? "space-y-4" : "space-y-4 px-5 py-5"}>
       {sent ? (
         <Alert tone={sent.ok ? "success" : "danger"}>{sent.message}</Alert>
       ) : null}

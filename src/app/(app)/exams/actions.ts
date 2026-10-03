@@ -12,6 +12,180 @@ import { scopedDb } from "@/lib/tenant";
 export interface ActionResult {
   ok: boolean;
   message: string;
+  values?: Record<string, string>;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Exam-term and exam setup                                                    */
+/* -------------------------------------------------------------------------- */
+
+const optionalExamDate = z
+  .string()
+  .optional()
+  .transform((value) => (value && value.trim() ? new Date(value) : null))
+  .refine((value) => value === null || !Number.isNaN(value.getTime()), {
+    message: "That date could not be read",
+  });
+
+const TermSchema = z
+  .object({
+    name: z.string().trim().min(1, "A term name is required").max(60),
+    sequence: z.coerce.number().int().min(1, "Sequence starts at 1").max(20),
+    weightage: z.coerce.number().min(0).max(100),
+    startDate: optionalExamDate,
+    endDate: optionalExamDate,
+  })
+  .refine(
+    (data) => !data.startDate || !data.endDate || data.endDate >= data.startDate,
+    { message: "The end date cannot be before the start date", path: ["endDate"] },
+  );
+
+/**
+ * Creates an exam term (e.g. "Term 1") in the current academic year. Exams,
+ * marks entry and report cards all hang off a term, so this is the first thing
+ * an admin must set up each session.
+ */
+export async function createExamTerm(
+  _prev: unknown,
+  formData: FormData,
+): Promise<ActionResult> {
+  const raw = Object.fromEntries(formData) as Record<string, string>;
+  const parsed = TermSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Invalid input", values: raw };
+  }
+
+  const session = await requirePermission("exams.manage");
+  const yearId = session.academicYear?.id;
+  if (!yearId) {
+    return { ok: false, message: "Set up a current academic year first.", values: raw };
+  }
+  const db = scopedDb(session.schoolId);
+
+  const clash = await db.examTerm.findFirst({
+    where: { academicYearId: yearId, name: parsed.data.name },
+    select: { id: true },
+  });
+  if (clash) {
+    return { ok: false, message: `A term named "${parsed.data.name}" already exists this year.`, values: raw };
+  }
+
+  const term = await db.examTerm.create({
+    data: {
+      schoolId: session.schoolId,
+      academicYearId: yearId,
+      name: parsed.data.name,
+      sequence: parsed.data.sequence,
+      weightage: parsed.data.weightage,
+      startDate: parsed.data.startDate,
+      endDate: parsed.data.endDate,
+    },
+    select: { id: true, name: true },
+  });
+
+  await recordAudit({
+    schoolId: session.schoolId,
+    userId: session.userId,
+    action: "exams.term.create",
+    entityType: "ExamTerm",
+    entityId: term.id,
+    after: { name: term.name, sequence: parsed.data.sequence },
+  });
+
+  revalidatePath("/exams");
+  return { ok: true, message: `Term "${term.name}" created. Add exams to it next.` };
+}
+
+const ExamSchema = z
+  .object({
+    termId: z.string().min(1, "Choose a term"),
+    classLevelId: z.string().min(1, "Choose a class"),
+    subjectId: z.string().min(1, "Choose a subject"),
+    name: z.string().trim().min(1, "An exam name is required").max(60),
+    maxMarks: z.coerce.number().min(1, "Max marks must be at least 1").max(1000),
+    passMarks: z.coerce.number().min(0).max(1000),
+  })
+  .refine((data) => data.passMarks <= data.maxMarks, {
+    message: "Pass marks cannot exceed the maximum",
+    path: ["passMarks"],
+  });
+
+/**
+ * Creates an exam paper: one subject, for one class, within a term. Marks entry
+ * opens a grid per section once this exists.
+ */
+export async function createExam(
+  _prev: unknown,
+  formData: FormData,
+): Promise<ActionResult> {
+  const raw = Object.fromEntries(formData) as Record<string, string>;
+  const parsed = ExamSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Invalid input", values: raw };
+  }
+
+  const session = await requirePermission("exams.manage");
+  const db = scopedDb(session.schoolId);
+
+  const [term, classLevel, subject] = await Promise.all([
+    db.examTerm.findUnique({ where: { id: parsed.data.termId }, select: { id: true, name: true } }),
+    db.classLevel.findUnique({ where: { id: parsed.data.classLevelId }, select: { id: true, name: true } }),
+    db.subject.findUnique({ where: { id: parsed.data.subjectId }, select: { id: true, name: true } }),
+  ]);
+  if (!term || !classLevel || !subject) {
+    return { ok: false, message: "That term, class or subject does not exist in your school.", values: raw };
+  }
+
+  const clash = await db.exam.findFirst({
+    where: {
+      termId: term.id,
+      classLevelId: classLevel.id,
+      subjectId: subject.id,
+      name: parsed.data.name,
+    },
+    select: { id: true },
+  });
+  if (clash) {
+    return {
+      ok: false,
+      message: `${subject.name} "${parsed.data.name}" already exists for ${classLevel.name} in ${term.name}.`,
+      values: raw,
+    };
+  }
+
+  const exam = await db.exam.create({
+    data: {
+      schoolId: session.schoolId,
+      termId: term.id,
+      classLevelId: classLevel.id,
+      subjectId: subject.id,
+      name: parsed.data.name,
+      maxMarks: parsed.data.maxMarks,
+      passMarks: parsed.data.passMarks,
+    },
+    select: { id: true, name: true },
+  });
+
+  await recordAudit({
+    schoolId: session.schoolId,
+    userId: session.userId,
+    action: "exams.exam.create",
+    entityType: "Exam",
+    entityId: exam.id,
+    after: {
+      term: term.name,
+      classLevel: classLevel.name,
+      subject: subject.name,
+      name: exam.name,
+      maxMarks: parsed.data.maxMarks,
+    },
+  });
+
+  revalidatePath("/exams");
+  return {
+    ok: true,
+    message: `${subject.name} "${exam.name}" added for ${classLevel.name} in ${term.name}.`,
+  };
 }
 
 /* -------------------------------------------------------------------------- */

@@ -1,4 +1,5 @@
 import { NoticeActions, NoticeForm } from "@/app/(app)/notices/notice-form";
+import { DrawerForm } from "@/components/drawer-form";
 import {
   Badge,
   Card,
@@ -59,6 +60,24 @@ export default async function NoticesPage() {
             ? "Publish announcements to parents, students and staff."
             : "Announcements from the school."
         }
+        action={
+          canManage ? (
+            <DrawerForm
+              trigger="New notice"
+              title="New notice"
+              description="Publish immediately or save as a draft"
+              width="w-[32rem]"
+            >
+              <NoticeForm
+                bare
+                sections={sections.map((section) => ({
+                  id: section.id,
+                  label: `${section.classLevel.name} ${section.name}`,
+                }))}
+              />
+            </DrawerForm>
+          ) : undefined
+        }
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -87,26 +106,25 @@ export default async function NoticesPage() {
         />
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <div className={canManage ? "lg:col-span-2" : "lg:col-span-3"}>
-          <Card>
-            <CardHeader
-              title="Notice board"
+      <div className="mt-4">
+        <Card>
+          <CardHeader
+            title="Notice board"
+            description={
+              canManage
+                ? "Drafts are visible here only, never to the audience"
+                : undefined
+            }
+          />
+          {notices.length === 0 ? (
+            <EmptyState
+              title="No notices yet"
               description={
                 canManage
-                  ? "Drafts are visible here only, never to the audience"
-                  : undefined
+                  ? "Publish one with “New notice” at the top right."
+                  : "Nothing has been announced."
               }
             />
-            {notices.length === 0 ? (
-              <EmptyState
-                title="No notices yet"
-                description={
-                  canManage
-                    ? "Publish one using the form alongside."
-                    : "Nothing has been announced."
-                }
-              />
             ) : (
               <ul className="divide-y divide-border">
                 {notices.map((notice) => {
@@ -175,20 +193,7 @@ export default async function NoticesPage() {
                 })}
               </ul>
             )}
-          </Card>
-        </div>
-
-        {canManage ? (
-          <Card className="h-fit">
-            <CardHeader title="New notice" description="Publish or save a draft" />
-            <NoticeForm
-              sections={sections.map((section) => ({
-                id: section.id,
-                label: `${section.classLevel.name} ${section.name}`,
-              }))}
-            />
-          </Card>
-        ) : null}
+        </Card>
       </div>
     </>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { saveRoute, saveVehicle } from "@/app/(app)/transport/actions";
+import { DrawerForm } from "@/components/drawer-form";
 import { ManageForm } from "@/components/manage-form";
 
 const VEHICLE_TYPES = [
@@ -12,9 +13,14 @@ const VEHICLE_TYPES = [
 
 export function AddVehicle() {
   return (
-    <ManageForm
+    <DrawerForm
+      trigger="Add vehicle"
       title="Add a vehicle"
       description="Registration must be unique on the fleet"
+    >
+    <ManageForm
+      bare
+      title="Add a vehicle"
       action={saveVehicle}
       submitLabel="Add vehicle"
       footnote="Compliance dates left blank show as “unknown”, never as valid."
@@ -32,14 +38,20 @@ export function AddVehicle() {
         { name: "pollutionExpiry", label: "Pollution expires", type: "date", half: true },
       ]}
     />
+    </DrawerForm>
   );
 }
 
 export function AddRoute({ vehicles }: { vehicles: { value: string; label: string }[] }) {
   return (
-    <ManageForm
+    <DrawerForm
+      trigger="Add route"
       title="Add a route"
       description="Stops are added from the route page"
+    >
+    <ManageForm
+      bare
+      title="Add a route"
       action={saveRoute}
       submitLabel="Create route"
       fields={[
@@ -58,5 +70,6 @@ export function AddRoute({ vehicles }: { vehicles: { value: string; label: strin
         { name: "distanceKm", label: "Distance (km)", type: "number", min: "0", step: "0.1", half: true },
       ]}
     />
+    </DrawerForm>
   );
 }

@@ -55,33 +55,44 @@ async function sendEmail(
   subject: string,
   body: string,
 ): Promise<DispatchResult> {
-  if (!env.smtp.host || !env.smtp.user) {
+  if (!env.email.apiKey) {
     console.info(`[notify:email → ${to}] ${subject}\n${body}`);
     return { delivered: false, provider: "console" };
   }
 
-  // Wired lazily so the SMTP dependency is optional for deployments that only
-  // use SMS/WhatsApp.
+  // Sent over HTTPS via Resend rather than SMTP, so it runs on Cloudflare
+  // Workers (which have no raw TCP/SMTP sockets). Any HTTP email provider
+  // — MailChannels, Postmark, SES v2 — drops in the same way.
   try {
-    const { createTransport } = await import("nodemailer");
-    const transport = createTransport({
-      host: env.smtp.host,
-      port: env.smtp.port,
-      secure: env.smtp.port === 465,
-      auth: { user: env.smtp.user, pass: env.smtp.password },
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.email.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: env.email.from,
+        to,
+        subject,
+        text: body,
+        html: body.replace(/\n/g, "<br>"),
+      }),
     });
-    const info = await transport.sendMail({
-      from: env.smtp.from,
-      to,
-      subject,
-      text: body,
-      html: body.replace(/\n/g, "<br>"),
-    });
-    return { delivered: true, provider: "smtp", providerMessageId: info.messageId };
+    const payload = (await response.json().catch(() => ({}))) as {
+      id?: string;
+      message?: string;
+    };
+    return response.ok
+      ? { delivered: true, provider: "resend", providerMessageId: payload.id }
+      : {
+          delivered: false,
+          provider: "resend",
+          error: payload.message ?? `Email rejected (${response.status})`,
+        };
   } catch (error) {
     return {
       delivered: false,
-      provider: "smtp",
+      provider: "resend",
       error: error instanceof Error ? error.message : String(error),
     };
   }

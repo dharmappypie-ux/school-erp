@@ -65,6 +65,10 @@ export const TENANT_MODELS = new Set([
   "AiInsight",
   "AiQueryLog",
   "SavedReport",
+  "Course",
+  "InventoryCategory",
+  "InventoryItem",
+  "Quiz",
 ]);
 
 const READ_OPERATIONS = new Set([

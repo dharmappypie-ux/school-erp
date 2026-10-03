@@ -6,6 +6,12 @@
  */
 
 export const PERMISSIONS = {
+  // Platform ownership — creating and managing whole schools (tenants). This
+  // sits ABOVE any single school. It is never granted through a per-school
+  // role; access is gated on the PLATFORM_ADMIN role key, which the "*"
+  // wildcard deliberately does not satisfy.
+  "platform.manage": "Create and manage schools (platform owner)",
+
   // Tenant administration
   "school.read": "View school profile",
   "school.update": "Edit school profile and branding",
@@ -101,6 +107,22 @@ export const PERMISSIONS = {
   "homework.manage": "Assign and grade homework",
   "homework.submit": "Submit homework",
 
+  // Learning management (LMS) — digital courses, lessons and resources
+  "lms.read": "View courses, lessons and resources",
+  "lms.manage": "Create and edit courses, lessons and resources",
+  "lms.publish": "Publish and unpublish courses to students",
+
+  // Inventory & stock
+  "inventory.read": "View inventory items and stock levels",
+  "inventory.manage": "Add and edit inventory items and categories",
+  "inventory.movement": "Record stock receipts, issues and adjustments",
+
+  // Quizzes — gamified, auto-graded quizzes
+  "quiz.read": "View quizzes and results",
+  "quiz.manage": "Create and edit quizzes and questions",
+  "quiz.publish": "Publish and unpublish quizzes",
+  "quiz.attempt": "Take quizzes in the portal",
+
   // Portal — student and guardian self-service.
   // Deliberately separate from the staff permissions above: a parent must not
   // hold `students.read`, which grants the whole roll. Portal pages authorise
@@ -143,6 +165,7 @@ export function hasAnyPermission(
 }
 
 export type RoleKey =
+  | "PLATFORM_ADMIN"
   | "SUPER_ADMIN"
   | "ADMIN"
   | "PRINCIPAL"
@@ -162,6 +185,36 @@ export interface RolePreset {
   permissions: string[];
   /** Landing route after login. */
   home: string;
+}
+
+/** The role key that grants platform ownership. */
+export const PLATFORM_ADMIN_KEY = "PLATFORM_ADMIN" as const;
+
+/**
+ * Slug of the hidden system workspace that houses platform-owner accounts.
+ * Every user needs a schoolId, so platform owners live in this tenant instead
+ * of a real school. It is excluded from the schools list and never billed.
+ */
+export const PLATFORM_WORKSPACE_SLUG = "platform-hq" as const;
+
+/**
+ * The platform-owner role. Kept OUT of `ROLE_PRESETS` on purpose so it is never
+ * seeded into a school or offered in a school's own role picker — otherwise a
+ * school admin could promote themselves to platform owner. It is created only
+ * for the designated owner, out of band.
+ */
+export const PLATFORM_ADMIN_PRESET: RolePreset = {
+  key: "PLATFORM_ADMIN",
+  name: "Platform Owner",
+  description: "Creates and manages schools across the whole platform.",
+  permissions: ["platform.manage"],
+  home: "/platform",
+};
+
+/** Is this a platform owner? Gated on the explicit role key, never on the
+ *  "*" wildcard (which every school super admin holds). */
+export function isPlatformAdmin(roleKeys: readonly string[]): boolean {
+  return roleKeys.includes(PLATFORM_ADMIN_KEY);
 }
 
 export const ROLE_PRESETS: RolePreset[] = [
@@ -208,6 +261,9 @@ export const ROLE_PRESETS: RolePreset[] = [
       ...moduleActions("messages"),
       ...moduleActions("notifications"),
       ...moduleActions("homework"),
+      ...moduleActions("lms"),
+      ...moduleActions("inventory"),
+      ...moduleActions("quiz"),
       ...moduleActions("analytics"),
       ...moduleActions("reports"),
       ...moduleActions("ai"),
@@ -258,6 +314,13 @@ export const ROLE_PRESETS: RolePreset[] = [
       "messages.use",
       "notifications.send",
       "homework.read",
+      "lms.read",
+      "lms.manage",
+      "lms.publish",
+      "quiz.read",
+      "quiz.manage",
+      "quiz.publish",
+      "inventory.read",
       "analytics.read",
       "reports.build",
       "ai.insights",
@@ -288,6 +351,12 @@ export const ROLE_PRESETS: RolePreset[] = [
       "messages.use",
       "homework.read",
       "homework.manage",
+      "lms.read",
+      "lms.manage",
+      "lms.publish",
+      "quiz.read",
+      "quiz.manage",
+      "quiz.publish",
       "library.read",
       "analytics.read",
       "ai.insights",
@@ -306,6 +375,9 @@ export const ROLE_PRESETS: RolePreset[] = [
       ...moduleActions("expenses"),
       "payroll.read",
       "payroll.manage",
+      "inventory.read",
+      "inventory.manage",
+      "inventory.movement",
       "notices.read",
       "messages.use",
       "notifications.send",
@@ -383,14 +455,14 @@ export const ROLE_PRESETS: RolePreset[] = [
     key: "STUDENT",
     name: "Student",
     description: "Self-service portal for the logged-in student.",
-    permissions: ["portal.access", "messages.use", "homework.submit", "leave.apply"],
+    permissions: ["portal.access", "messages.use", "homework.submit", "quiz.attempt"],
     home: "/portal",
   },
   {
     key: "PARENT",
     name: "Parent / Guardian",
     description: "Portal covering the guardian's own children only.",
-    permissions: ["portal.access", "messages.use", "admissions.apply", "homework.submit"],
+    permissions: ["portal.access", "messages.use", "admissions.apply", "homework.submit", "quiz.attempt"],
     home: "/portal",
   },
 ];
@@ -404,6 +476,8 @@ export const ROLE_PRESET_BY_KEY = new Map<string, RolePreset>(
  * Staff-facing roles win over portal roles when a user has both.
  */
 export function resolveHomeRoute(roleKeys: readonly string[]): string {
+  // Platform owners land on the cross-tenant console, above any school.
+  if (roleKeys.includes(PLATFORM_ADMIN_KEY)) return PLATFORM_ADMIN_PRESET.home;
   for (const preset of ROLE_PRESETS) {
     if (roleKeys.includes(preset.key)) return preset.home;
   }

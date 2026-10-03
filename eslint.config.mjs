@@ -12,6 +12,15 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Nested build output and agent worktrees: the top-level `.next/**` glob
+    // does not match a `.next` dir sitting under `.claude/worktrees/*`, so a
+    // background agent's build output would otherwise be linted.
+    "**/.next/**",
+    ".claude/**",
+    "src/generated/**",
+    // Cloudflare / OpenNext build output.
+    ".open-next/**",
+    ".wrangler/**",
   ]),
 ]);
 

@@ -4,9 +4,20 @@
 // Child/detail rows scope through their parent instead of repeating schoolId.
 // ============================================================================
 
+// Default client — runs on Node.js (local dev, `next build`, seed & verify scripts).
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
+}
+
+// Edge client for the Cloudflare Workers build. Uses the wasm query compiler
+// imported as a module (Workers forbids runtime Wasm compilation). Swapped in
+// for the default client only during the OpenNext build via a next.config alias
+// gated on PRISMA_EDGE=1 (set by the `deploy` script).
+generator clientEdge {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma-workerd"
+  runtime  = "workerd"
 }
 
 datasource db {
@@ -332,6 +343,10 @@ model School {
   aiInsights            AiInsight[]
   aiQueryLogs           AiQueryLog[]
   savedReports          SavedReport[]
+  courses               Course[]
+  inventoryCategories   InventoryCategory[]
+  inventoryItems        InventoryItem[]
+  quizzes               Quiz[]
   auditLogs             AuditLog[]
 
   @@index([isActive])
@@ -535,6 +550,8 @@ model ClassLevel {
   feeStructures         FeeStructure[]
   admissionApplications AdmissionApplication[]
   exams                 Exam[]
+  courses               Course[]
+  quizzes               Quiz[]
 
   @@unique([schoolId, name])
   @@index([schoolId, numericOrder])
@@ -596,6 +613,8 @@ model Subject {
   homeworks         Homework[]
   periodAttendances PeriodAttendance[]
   reportCardLines   ReportCardLine[]
+  courses           Course[]
+  quizzes           Quiz[]
 
   @@unique([schoolId, code])
   @@map("subjects")
@@ -696,6 +715,8 @@ model Student {
   documents            Document[]
   riskScores           RiskScore[]
   aiInsights           AiInsight[]
+  lessonProgress       LessonProgress[]
+  quizAttempts         QuizAttempt[]
   admissionApplication AdmissionApplication?
 
   @@unique([schoolId, admissionNo])
@@ -825,6 +846,8 @@ model StaffMember {
   examSchedulesInvigilated ExamSchedule[]          @relation("ExamInvigilator")
   hostelsWarded            Hostel[]                @relation("HostelWarden")
   markEntriesRecorded      MarkEntry[]             @relation("MarkRecorder")
+  coursesAuthored          Course[]                @relation("CourseAuthor")
+  quizzesAuthored          Quiz[]                  @relation("QuizAuthor")
 
   @@unique([schoolId, employeeId])
   @@index([schoolId, employmentStatus])
@@ -2366,6 +2389,15 @@ model HomeworkSubmission {
   /// guardian rather than the student, and the teacher should be able to tell.
   submittedById String?
 
+  /// Originality check results (0–100, higher = more original). Null until a
+  /// teacher runs the check on the assignment.
+  originalityScore     Int?
+  /// ORIGINAL | REVIEW | COPIED | AI_GENERATED — a coarse flag for the list.
+  originalityFlag      String?
+  /// Human-readable summary: the closest match and/or the AI's opinion.
+  originalityNote      String?
+  originalityCheckedAt DateTime?
+
   answers HomeworkAnswer[]
 
   createdAt DateTime @default(now())
@@ -2576,4 +2608,351 @@ model SavedReport {
 
   @@index([schoolId])
   @@map("saved_reports")
+}
+
+// ============================================================================
+// LEARNING MANAGEMENT (LMS)
+//
+// Digital teaching material organised as courses → lessons, with attachable
+// resources and per-student progress. A published course targeted at a class
+// level appears in the portal for every student enrolled in that class.
+// ============================================================================
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CourseResourceType {
+  LINK
+  PDF
+  VIDEO
+  DOCUMENT
+  IMAGE
+  OTHER
+}
+
+model Course {
+  id           String      @id @default(cuid())
+  schoolId     String
+  school       School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classLevelId String?
+  classLevel   ClassLevel? @relation(fields: [classLevelId], references: [id], onDelete: SetNull)
+  subjectId    String?
+  subject      Subject?    @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+
+  teacherId String?
+  teacher   StaffMember? @relation("CourseAuthor", fields: [teacherId], references: [id], onDelete: SetNull)
+
+  title         String
+  summary       String?
+  description   String?
+  coverImageUrl String?
+
+  status      CourseStatus @default(DRAFT)
+  publishedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lessons   Lesson[]
+  resources CourseResource[]
+
+  @@index([schoolId, status])
+  @@index([classLevelId])
+  @@map("courses")
+}
+
+/// One lesson within a course, ordered by `sequence`.
+model Lesson {
+  id       String @id @default(cuid())
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  sequence Int
+  title    String
+  /// Lesson body, authored as Markdown.
+  content         String?
+  videoUrl        String?
+  durationMinutes Int?
+  /// Preview lessons stay readable even when a course is otherwise gated.
+  isPreview       Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  resources CourseResource[]
+  progress  LessonProgress[]
+
+  @@unique([courseId, sequence])
+  @@index([courseId])
+  @@map("lessons")
+}
+
+/// A downloadable or linked teaching resource, attached to a course and
+/// optionally scoped to one lesson within it.
+model CourseResource {
+  id       String  @id @default(cuid())
+  courseId String
+  course   Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessonId String?
+  lesson   Lesson? @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  title String
+  type  CourseResourceType @default(LINK)
+  url   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([courseId])
+  @@index([lessonId])
+  @@map("course_resources")
+}
+
+/// Which lessons a student has completed, so the portal can show progress and
+/// pick up where they left off. Reaches its tenant through the lesson's course.
+model LessonProgress {
+  id        String  @id @default(cuid())
+  lessonId  String
+  lesson    Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  completedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([lessonId, studentId])
+  @@index([studentId])
+  @@map("lesson_progress")
+}
+
+// ============================================================================
+// INVENTORY & STOCK
+//
+// Consumables and assets (lab equipment, furniture, stationery, sports gear)
+// with per-item stock levels and a movement ledger. Every receipt, issue or
+// stocktake adjustment is a StockMovement that records the running balance, so
+// the item's quantity is always reconstructable from its history.
+// ============================================================================
+
+enum StockMovementType {
+  IN
+  OUT
+  ADJUST
+}
+
+model InventoryCategory {
+  id          String  @id @default(cuid())
+  schoolId    String
+  school      School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items InventoryItem[]
+
+  @@unique([schoolId, name])
+  @@map("inventory_categories")
+}
+
+model InventoryItem {
+  id         String             @id @default(cuid())
+  schoolId   String
+  school     School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  categoryId String?
+  category   InventoryCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  name         String
+  sku          String?
+  /// Unit of issue, e.g. "piece", "box", "litre".
+  unit         String  @default("unit")
+  /// Current quantity on hand — the running balance of the movement ledger.
+  quantity     Int     @default(0)
+  /// Raise a low-stock flag at or below this level.
+  reorderLevel Int     @default(0)
+  location     String?
+  unitCost     Decimal? @db.Decimal(12, 2)
+  notes        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  movements StockMovement[]
+
+  @@index([schoolId, categoryId])
+  @@index([schoolId, name])
+  @@map("inventory_items")
+}
+
+/// One receipt (IN), issue (OUT) or stocktake correction (ADJUST) against an
+/// item. `balanceAfter` freezes the on-hand quantity at the time of the move so
+/// the ledger reads correctly even after later edits. Reaches its tenant
+/// through the item's required relation.
+model StockMovement {
+  id     String        @id @default(cuid())
+  itemId String
+  item   InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  type         StockMovementType
+  /// For IN/OUT this is the amount moved; for ADJUST it is the new counted total.
+  quantity     Int
+  /// On-hand quantity immediately after this movement was applied.
+  balanceAfter Int
+  note         String?
+  /// Free-form reference — a PO number, a person a stock was issued to, etc.
+  reference    String?
+  /// User who recorded the movement (no FK, matching other actor columns).
+  createdById  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([itemId, createdAt])
+  @@map("stock_movements")
+}
+
+// ============================================================================
+// QUIZZES & GAMIFIED LEARNING
+//
+// Short, auto-graded quizzes (Yooreka-style) that students take from the
+// portal. Each attempt is scored on submission; total points across attempts
+// drive class and school leaderboards, and consecutive daily attempts build a
+// streak (computed from attempt dates, not stored).
+// ============================================================================
+
+enum QuizStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Quiz {
+  id           String      @id @default(cuid())
+  schoolId     String
+  school       School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classLevelId String?
+  classLevel   ClassLevel? @relation(fields: [classLevelId], references: [id], onDelete: SetNull)
+  subjectId    String?
+  subject      Subject?    @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+
+  teacherId String?
+  teacher   StaffMember? @relation("QuizAuthor", fields: [teacherId], references: [id], onDelete: SetNull)
+
+  title       String
+  description String?
+
+  status      QuizStatus @default(DRAFT)
+  publishedAt DateTime?
+  /// Optional availability window. Null bounds mean "always", once published.
+  availableFrom  DateTime?
+  availableUntil DateTime?
+  /// Optional soft time limit shown to the student (not server-enforced).
+  timeLimitMinutes Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  questions QuizQuestion[]
+  attempts  QuizAttempt[]
+
+  @@index([schoolId, status])
+  @@index([classLevelId])
+  @@map("quizzes")
+}
+
+/// One multiple-choice question on a quiz, ordered by `sequence`.
+model QuizQuestion {
+  id     String @id @default(cuid())
+  quizId String
+  quiz   Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  sequence Int
+  prompt   String
+  /// Choices in order.
+  options  String[]
+  /// Zero-based index of the correct choice.
+  correctOption Int
+  points        Int     @default(10)
+  /// Shown to the student after they submit, to explain the answer.
+  explanation   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  answers QuizAnswer[]
+
+  @@unique([quizId, sequence])
+  @@index([quizId])
+  @@map("quiz_questions")
+}
+
+/// One student's single attempt at a quiz. Scored on submission; `completedAt`
+/// distinguishes a finished attempt from one still in progress.
+model QuizAttempt {
+  id     String @id @default(cuid())
+  quizId String
+  quiz   Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  score       Int @default(0)
+  totalPoints Int @default(0)
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  answers QuizAnswer[]
+
+  @@unique([quizId, studentId])
+  @@index([studentId, completedAt])
+  @@map("quiz_attempts")
+}
+
+/// One student's answer to one quiz question, graded at submission time.
+model QuizAnswer {
+  id         String       @id @default(cuid())
+  attemptId  String
+  attempt    QuizAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId String
+  question   QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  selectedOption Int?
+  isCorrect      Boolean @default(false)
+  pointsAwarded  Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@unique([attemptId, questionId])
+  @@index([attemptId])
+  @@map("quiz_answers")
+}
+
+// ============================================================================
+// UPLOADS
+//
+// Binary uploads (student/staff photos, homework attachments) stored in the
+// database, so the app needs no external object store and runs on Cloudflare
+// Workers where the filesystem is read-only. Addressed by `key` — the path used
+// in the /uploads/<key> URL — and served publicly by key, matching the previous
+// static `public/uploads` behaviour.
+// ============================================================================
+
+model Upload {
+  key         String   @id
+  data        Bytes
+  contentType String
+  size        Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("uploads")
 }

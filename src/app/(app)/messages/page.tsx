@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Composer } from "@/app/(app)/messages/composer";
+import { NewMessage } from "@/app/(app)/messages/new-thread";
 import { Avatar } from "@/components/avatar";
 import {
   Badge,
@@ -74,6 +75,54 @@ export default async function MessagesPage({ searchParams }: PageProps<"/message
 
   const totalUnread = summaries.reduce((sum, s) => sum + s.unread, 0);
 
+  // Who this person may start a conversation with. Everyone can reach staff;
+  // staff can additionally reach guardians (parents). The server re-checks this
+  // on send, so the list is a convenience, not the security boundary.
+  const senderIsStaff = Boolean(session.staffId);
+  const [staffContacts, guardianContacts] = await Promise.all([
+    db.staffMember.findMany({
+      where: { employmentStatus: "ACTIVE", deletedAt: null, userId: { not: null } },
+      orderBy: { firstName: "asc" },
+      select: { userId: true, firstName: true, lastName: true, employeeId: true },
+    }),
+    senderIsStaff
+      ? db.guardian.findMany({
+          where: { userId: { not: null } },
+          orderBy: { firstName: "asc" },
+          take: 500,
+          select: {
+            userId: true,
+            firstName: true,
+            lastName: true,
+            students: {
+              take: 1,
+              select: { student: { select: { firstName: true, admissionNo: true } } },
+            },
+          },
+        })
+      : [],
+  ]);
+
+  const recipients = [
+    ...staffContacts
+      .filter((staff) => staff.userId && staff.userId !== session.userId)
+      .map((staff) => ({
+        value: staff.userId!,
+        label: `${staff.firstName} ${staff.lastName ?? ""} · staff`.trim(),
+      })),
+    ...guardianContacts
+      .filter((guardian) => guardian.userId && guardian.userId !== session.userId)
+      .map((guardian) => {
+        const child = guardian.students[0]?.student;
+        return {
+          value: guardian.userId!,
+          label: `${guardian.firstName} ${guardian.lastName ?? ""}${
+            child ? ` · parent of ${child.firstName} (${child.admissionNo})` : " · guardian"
+          }`.trim(),
+        };
+      }),
+  ];
+
   const nameFor = (userId: string) => {
     const member = active?.members.find((m) => m.userId === userId);
     return member ? `${member.user.firstName} ${member.user.lastName ?? ""}`.trim() : "Unknown";
@@ -84,6 +133,7 @@ export default async function MessagesPage({ searchParams }: PageProps<"/message
       <PageHeader
         title="Messages"
         description="Conversations you are part of"
+        action={recipients.length > 0 ? <NewMessage recipients={recipients} /> : undefined}
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -105,7 +155,7 @@ export default async function MessagesPage({ searchParams }: PageProps<"/message
           {summaries.length === 0 ? (
             <EmptyState
               title="No conversations"
-              description="Threads you are added to will appear here."
+              description="Start one with “New message”, or wait to be added to a thread."
             />
           ) : (
             <ul className="divide-y divide-border">

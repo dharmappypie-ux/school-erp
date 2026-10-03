@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { CollectForm } from "@/app/(app)/fees/collect-form";
+import { GenerateInvoices } from "@/app/(app)/fees/generate-panel";
 import { FilterSelect, Pagination, SearchBox } from "@/components/data-controls";
 import {
   Badge,
@@ -151,6 +152,20 @@ export default async function FeesPage({ searchParams }: PageProps<"/fees">) {
   const studentById = new Map(defaulterStudents.map((student) => [student.id, student]));
 
   const canCollect = hasPermission(session.permissions, "fees.collect");
+  const canInvoice = hasPermission(session.permissions, "fees.invoice");
+
+  const structures = canInvoice
+    ? await db.feeStructure.findMany({
+        where: { isActive: true, ...(yearId ? { academicYearId: yearId } : {}) },
+        orderBy: { name: "asc" },
+        select: {
+          id: true,
+          name: true,
+          classLevel: { select: { name: true } },
+          _count: { select: { items: true } },
+        },
+      })
+    : [];
 
   const collectOptions = defaulters
     .map((row) => {
@@ -177,6 +192,18 @@ export default async function FeesPage({ searchParams }: PageProps<"/fees">) {
           session.academicYear
             ? `Academic year ${session.academicYear.name}`
             : "No academic year is current"
+        }
+        action={
+          canInvoice ? (
+            <GenerateInvoices
+              structures={structures.map((structure) => ({
+                value: structure.id,
+                label: `${structure.name}${
+                  structure.classLevel ? ` · ${structure.classLevel.name}` : " · all classes"
+                } (${structure._count.items} heads)`,
+              }))}
+            />
+          ) : undefined
         }
       />
 

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { AddExam, AddExamTerm } from "@/app/(app)/exams/setup-panels";
 import { FilterSelect } from "@/components/data-controls";
 import {
   Badge,
@@ -129,7 +130,15 @@ export default async function ExamsPage({ searchParams }: PageProps<"/exams">) {
 
   const canEnterMarks = hasPermission(session.permissions, "marks.enter");
   const canGenerate = hasPermission(session.permissions, "reportcards.generate");
+  const canManage = hasPermission(session.permissions, "exams.manage");
   const selectedTerm = terms.find((term) => term.id === termId);
+
+  const subjects = canManage
+    ? await db.subject.findMany({
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, code: true },
+      })
+    : [];
 
   return (
     <>
@@ -141,8 +150,23 @@ export default async function ExamsPage({ searchParams }: PageProps<"/exams">) {
             : "No exam term configured"
         }
         action={
-          canGenerate ? (
-            <ButtonLink href="/exams/report-cards">Report cards</ButtonLink>
+          canManage || canGenerate ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {canManage ? <AddExamTerm /> : null}
+              {canManage ? (
+                <AddExam
+                  terms={terms.map((term) => ({ value: term.id, label: term.name }))}
+                  classLevels={classLevels.map((level) => ({ value: level.id, label: level.name }))}
+                  subjects={subjects.map((subject) => ({
+                    value: subject.id,
+                    label: `${subject.name} (${subject.code})`,
+                  }))}
+                />
+              ) : null}
+              {canGenerate ? (
+                <ButtonLink href="/exams/report-cards">Report cards</ButtonLink>
+              ) : null}
+            </div>
           ) : undefined
         }
       />

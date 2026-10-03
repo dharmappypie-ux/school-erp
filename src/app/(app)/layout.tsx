@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/app-shell";
+import { accountSummary } from "@/lib/account";
 import { requireAuth } from "@/lib/auth";
 import { initials } from "@/lib/format";
 import { visibleNavigation } from "@/lib/navigation";
@@ -15,6 +16,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const roleNames = session.roleKeys.map(
     (key) => ROLE_PRESET_BY_KEY.get(key)?.name ?? key,
   );
+  const account = await accountSummary(session);
 
   return (
     <AppShell
@@ -23,8 +25,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         name: session.fullName,
         email: session.email,
         initials: initials(session.firstName, session.lastName),
-        roles: roleNames,
+        roleLabel: roleNames.join(", ") || "Member",
+        avatarUrl: session.avatarUrl,
       }}
+      account={account}
       school={{ name: session.school.name, slug: session.school.slug }}
       academicYear={session.academicYear?.name ?? null}
     >

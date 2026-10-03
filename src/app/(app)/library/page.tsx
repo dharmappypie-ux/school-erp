@@ -151,6 +151,27 @@ export default async function LibraryPage({ searchParams }: PageProps<"/library"
       <PageHeader
         title="Library"
         description={`${totalTitles} titles · ${totalCopies} copies · ${openLoans.length} on loan`}
+        action={
+          canManage ? (
+            <div className="flex flex-wrap gap-2">
+              <AddBook />
+              <IssueBook
+                copies={availableCopies.map((copy) => ({
+                  value: copy.id,
+                  label: `${copy.accessionNo} · ${copy.book.title}`,
+                }))}
+                students={borrowerStudents.map((student) => ({
+                  value: student.id,
+                  label: `${student.firstName} ${student.lastName} (${student.admissionNo})`,
+                }))}
+                staff={borrowerStaff.map((member) => ({
+                  value: member.id,
+                  label: `${member.firstName} ${member.lastName} (${member.employeeId})`,
+                }))}
+              />
+            </div>
+          ) : undefined
+        }
       />
 
       {overdue.length > 0 ? (
@@ -347,25 +368,6 @@ export default async function LibraryPage({ searchParams }: PageProps<"/library"
           ? ` ${copyTotals.WITHDRAWN} copies have been withdrawn from stock.`
           : ""}
       </p>
-      {canManage ? (
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <AddBook />
-          <IssueBook
-            copies={availableCopies.map((copy) => ({
-              value: copy.id,
-              label: `${copy.accessionNo} · ${copy.book.title}`,
-            }))}
-            students={borrowerStudents.map((student) => ({
-              value: student.id,
-              label: `${student.firstName} ${student.lastName} (${student.admissionNo})`,
-            }))}
-            staff={borrowerStaff.map((member) => ({
-              value: member.id,
-              label: `${member.firstName} ${member.lastName} (${member.employeeId})`,
-            }))}
-          />
-        </div>
-      ) : null}
 
     </>
   );

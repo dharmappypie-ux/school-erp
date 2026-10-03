@@ -1,6 +1,7 @@
 "use client";
 
 import { addRoom, allocateRoom, saveBlock } from "@/app/(app)/hostel/actions";
+import { DrawerForm } from "@/components/drawer-form";
 import { ManageForm } from "@/components/manage-form";
 
 const BLOCK_TYPES = [
@@ -18,9 +19,14 @@ const ROOM_TYPES = [
 
 export function AddBlock({ wardens }: { wardens: { value: string; label: string }[] }) {
   return (
-    <ManageForm
+    <DrawerForm
+      trigger="Add block"
       title="Add a block"
       description="Gendered blocks are enforced when placing students"
+    >
+    <ManageForm
+      bare
+      title="Add a block"
       action={saveBlock}
       submitLabel="Create block"
       fields={[
@@ -31,14 +37,20 @@ export function AddBlock({ wardens }: { wardens: { value: string; label: string 
         { name: "address", label: "Address", half: true },
       ]}
     />
+    </DrawerForm>
   );
 }
 
 export function AddRoom({ blocks }: { blocks: { value: string; label: string }[] }) {
   return (
-    <ManageForm
+    <DrawerForm
+      trigger="Add room"
       title="Add a room"
       description="Room numbers are unique within a block"
+    >
+    <ManageForm
+      bare
+      title="Add a room"
       action={addRoom}
       submitLabel="Add room"
       fields={[
@@ -50,6 +62,7 @@ export function AddRoom({ blocks }: { blocks: { value: string; label: string }[]
         { name: "monthlyFee", label: "Monthly fee", type: "number", min: "0", step: "0.01", half: true },
       ]}
     />
+    </DrawerForm>
   );
 }
 
@@ -61,9 +74,14 @@ export function AllocateRoom({
   students: { value: string; label: string }[];
 }) {
   return (
-    <ManageForm
+    <DrawerForm
+      trigger="Place a student"
       title="Place a student"
       description="Checked against the block's gender and its free beds"
+    >
+    <ManageForm
+      bare
+      title="Place a student"
       action={allocateRoom}
       submitLabel="Allocate bed"
       footnote="A student with no gender recorded is refused rather than defaulted — that decision needs a person."
@@ -80,5 +98,6 @@ export function AllocateRoom({
         { name: "bedNumber", label: "Bed", placeholder: "B", half: true },
       ]}
     />
+    </DrawerForm>
   );
 }

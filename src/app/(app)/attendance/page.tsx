@@ -14,6 +14,7 @@ import {
 import { requireAuth } from "@/lib/auth";
 import { formatDate, formatPercent } from "@/lib/format";
 import { hasPermission } from "@/lib/permissions";
+import { teacherSectionIds } from "@/lib/teacher-scope";
 import { scopedDb } from "@/lib/tenant";
 
 export const metadata = { title: "Attendance" };
@@ -45,13 +46,25 @@ export default async function AttendancePage({
       : isoDate(new Date());
   const day = new Date(`${date}T00:00:00.000Z`);
 
-  const sections = yearId
+  const allSections = yearId
     ? await db.section.findMany({
         where: { academicYearId: yearId },
         orderBy: [{ classLevel: { numericOrder: "asc" } }, { name: "asc" }],
         select: { id: true, name: true, classLevel: { select: { name: true } } },
       })
     : [];
+
+  // A teacher's own classes come first, so they are not hunting for their
+  // section in a school-wide list. Non-teachers see the plain ordering.
+  const mySectionIds = await teacherSectionIds(db, session.staffId, yearId);
+  const sections =
+    mySectionIds.size > 0
+      ? [...allSections].sort((a, b) => {
+          const aMine = mySectionIds.has(a.id) ? 0 : 1;
+          const bMine = mySectionIds.has(b.id) ? 0 : 1;
+          return aMine - bMine;
+        })
+      : allSections;
 
   const sectionId =
     typeof params.section === "string" && params.section
@@ -169,7 +182,9 @@ export default async function AttendancePage({
                 allLabel="Select class"
                 options={sections.map((section) => ({
                   value: section.id,
-                  label: `${section.classLevel.name} ${section.name}`,
+                  label: `${section.classLevel.name} ${section.name}${
+                    mySectionIds.has(section.id) ? " · my class" : ""
+                  }`,
                 }))}
               />
               <form className="contents">

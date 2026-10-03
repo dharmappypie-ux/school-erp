@@ -61,6 +61,7 @@ export function ManageForm({
   submitLabel = "Save",
   hiddenValues,
   footnote,
+  bare = false,
 }: {
   title: string;
   description?: string;
@@ -69,6 +70,9 @@ export function ManageForm({
   submitLabel?: string;
   hiddenValues?: Record<string, string>;
   footnote?: string;
+  /** Drop the surrounding Card — used when the form lives inside a drawer whose
+   *  own header already supplies the title. */
+  bare?: boolean;
 }) {
   const [state, formAction] = useActionState(action, null);
 
@@ -77,10 +81,8 @@ export function ManageForm({
   const valueFor = (field: FormFieldSpec) =>
     state?.values?.[field.name] ?? field.defaultValue ?? "";
 
-  return (
-    <Card className="h-fit">
-      <CardHeader title={title} description={description} />
-      <form action={formAction} className="space-y-3 px-5 py-5">
+  const body = (
+      <form action={formAction} className={bare ? "space-y-3" : "space-y-3 px-5 py-5"}>
         {state ? (
           <Alert tone={state.ok ? "success" : "danger"}>{state.message}</Alert>
         ) : null}
@@ -135,6 +137,14 @@ export function ManageForm({
 
         {footnote ? <p className="text-[11px] text-muted">{footnote}</p> : null}
       </form>
+  );
+
+  if (bare) return body;
+
+  return (
+    <Card className="h-fit">
+      <CardHeader title={title} description={description} />
+      {body}
     </Card>
   );
 }

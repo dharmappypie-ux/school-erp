@@ -1,11 +1,10 @@
 "use server";
 
-import { mkdir, unlink, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { revalidatePath } from "next/cache";
 
 import { requirePermission } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
+import { deleteUpload, saveUpload } from "@/lib/storage";
 import { scopedDb } from "@/lib/tenant";
 import {
   safeImageName,
@@ -39,14 +38,6 @@ const SUBJECTS = {
     label: "Staff member",
   },
 } as const;
-
-function uploadDir(subject: PhotoSubject): string {
-  return join(process.cwd(), "public", "uploads", SUBJECTS[subject].directory);
-}
-
-function publicPath(subject: PhotoSubject, filename: string): string {
-  return `/uploads/${SUBJECTS[subject].directory}/${filename}`;
-}
 
 /** Reads the record and its current photo, scoped to the caller's school. */
 async function loadRecord(
@@ -91,15 +82,14 @@ async function removeStoredFile(
   if (!photoUrl?.startsWith(prefix)) return;
   const filename = photoUrl.slice(prefix.length);
   if (!filename || filename === keep || filename.includes("/")) return;
-  await unlink(join(uploadDir(subject), filename)).catch(() => undefined);
+  await deleteUpload(SUBJECTS[subject].directory, filename);
 }
 
 /**
  * Stores a person's photo.
  *
- * Files are written to `public/uploads` on the local filesystem, which works on
- * a VPS or a container with a persistent volume. A serverless deployment needs
- * object storage instead, and this is the one function to swap.
+ * Storage is handled by `@/lib/storage`: R2 on Cloudflare Workers, the local
+ * `public/uploads` filesystem in development. This function is unaware of which.
  *
  * The declared MIME type is never trusted — the leading bytes decide — and the
  * filename is built from the record id plus a server-chosen extension, so the
@@ -143,15 +133,14 @@ export async function uploadPersonPhoto(
 
   const filename = safeImageName(record.id, declared.extension!);
 
+  let photoUrl: string;
   try {
-    await mkdir(uploadDir(subject), { recursive: true });
-    await writeFile(join(uploadDir(subject), filename), bytes);
+    photoUrl = await saveUpload(SUBJECTS[subject].directory, filename, bytes, actualType);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return { ok: false, message: `Could not save the image: ${message}` };
   }
 
-  const photoUrl = publicPath(subject, filename);
   await savePhotoUrl(subject, session.schoolId, recordId, photoUrl);
 
   // Replaced photos would otherwise accumulate on disk. A failure here is not

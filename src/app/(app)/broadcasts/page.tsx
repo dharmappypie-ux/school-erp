@@ -1,4 +1,5 @@
 import { Composer } from "@/app/(app)/broadcasts/composer";
+import { DrawerForm } from "@/components/drawer-form";
 import {
   Alert,
   Badge,
@@ -81,13 +82,29 @@ export default async function BroadcastsPage() {
   }
 
   const providersConfigured =
-    Boolean(env.smtp.host) || Boolean(env.msg91.authKey) || Boolean(env.whatsapp.accessToken);
+    Boolean(env.email.apiKey) || Boolean(env.msg91.authKey) || Boolean(env.whatsapp.accessToken);
 
   return (
     <>
       <PageHeader
         title="Broadcasts"
         description="Message parents, students or staff across SMS, WhatsApp, email and the portal."
+        action={
+          <DrawerForm
+            trigger="New broadcast"
+            title="Compose broadcast"
+            description="Check the audience before sending"
+            width="w-[34rem]"
+          >
+            <Composer
+              bare
+              sections={sections.map((section) => ({
+                id: section.id,
+                label: `${section.classLevel.name} ${section.name}`,
+              }))}
+            />
+          </DrawerForm>
+        }
       />
 
       {!providersConfigured ? (
@@ -127,67 +144,52 @@ export default async function BroadcastsPage() {
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader
-            title="Compose"
-            description="Check the audience before sending"
-          />
-          <Composer
-            sections={sections.map((section) => ({
-              id: section.id,
-              label: `${section.classLevel.name} ${section.name}`,
-            }))}
-          />
+          <CardHeader title="Channels in use" />
+          {channelCounts.length === 0 ? (
+            <EmptyState title="Nothing sent yet" />
+          ) : (
+            <ul className="divide-y divide-border">
+              {channelCounts.map((row) => (
+                <li
+                  key={row.channel}
+                  className="flex items-center justify-between px-5 py-2.5"
+                >
+                  <span className="text-sm">{row.channel.toLowerCase()}</span>
+                  <span className="numeric text-xs text-muted">
+                    {row._count._all} messages
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
 
-        <div className="space-y-4">
-          <Card>
-            <CardHeader title="Channels in use" />
-            {channelCounts.length === 0 ? (
-              <EmptyState title="Nothing sent yet" />
-            ) : (
-              <ul className="divide-y divide-border">
-                {channelCounts.map((row) => (
-                  <li
-                    key={row.channel}
-                    className="flex items-center justify-between px-5 py-2.5"
-                  >
-                    <span className="text-sm">{row.channel.toLowerCase()}</span>
-                    <span className="numeric text-xs text-muted">
-                      {row._count._all} messages
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-
-          <Card>
-            <CardHeader
-              title="Templates"
-              description="Used by automatic notifications"
-            />
-            {templates.length === 0 ? (
-              <EmptyState title="No templates configured" />
-            ) : (
-              <ul className="divide-y divide-border">
-                {templates.map((template) => (
-                  <li key={template.id} className="px-5 py-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium">{template.name}</span>
-                      <Badge tone="neutral">{template.channel.toLowerCase()}</Badge>
-                    </div>
-                    <p className="mt-0.5 font-mono text-[11px] text-muted">
-                      {template.key}
-                      {template.variables.length > 0
-                        ? ` · ${template.variables.join(", ")}`
-                        : ""}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-        </div>
+        <Card>
+          <CardHeader
+            title="Templates"
+            description="Used by automatic notifications"
+          />
+          {templates.length === 0 ? (
+            <EmptyState title="No templates configured" />
+          ) : (
+            <ul className="divide-y divide-border">
+              {templates.map((template) => (
+                <li key={template.id} className="px-5 py-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium">{template.name}</span>
+                    <Badge tone="neutral">{template.channel.toLowerCase()}</Badge>
+                  </div>
+                  <p className="mt-0.5 font-mono text-[11px] text-muted">
+                    {template.key}
+                    {template.variables.length > 0
+                      ? ` · ${template.variables.join(", ")}`
+                      : ""}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
       </div>
 
       <Card className="mt-4">
@@ -198,7 +200,7 @@ export default async function BroadcastsPage() {
         {batches.size === 0 ? (
           <EmptyState
             title="No broadcasts sent yet"
-            description="Compose one above to see it here."
+            description="Use “New broadcast” at the top right to send one."
           />
         ) : (
           <Table>

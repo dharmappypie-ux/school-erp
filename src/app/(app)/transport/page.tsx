@@ -129,6 +129,19 @@ export default async function TransportPage() {
       <PageHeader
         title="Transport"
         description={`${vehicles.length} vehicles · ${routes.length} routes · ${assignedTotal} students`}
+        action={
+          canManage ? (
+            <div className="flex flex-wrap gap-2">
+              <AddVehicle />
+              <AddRoute
+                vehicles={vehicles.map((vehicle) => ({
+                  value: vehicle.id,
+                  label: `${vehicle.registrationNo}${vehicle.model ? ` · ${vehicle.model}` : ""}`,
+                }))}
+              />
+            </div>
+          ) : undefined
+        }
       />
 
       {expired.length > 0 ? (
@@ -327,18 +340,6 @@ export default async function TransportPage() {
         recorded expiry date is shown as “not recorded” rather than valid.
         Fares are set per stop and shown in {currency}.
       </p>
-      {canManage ? (
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <AddVehicle />
-          <AddRoute
-            vehicles={vehicles.map((vehicle) => ({
-              value: vehicle.id,
-              label: `${vehicle.registrationNo}${vehicle.model ? ` · ${vehicle.model}` : ""}`,
-            }))}
-          />
-        </div>
-      ) : null}
-
     </>
   );
 }
