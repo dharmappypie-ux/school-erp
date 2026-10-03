@@ -5,6 +5,7 @@ import {
 import { FilterSelect } from "@/components/data-controls";
 import {
   Alert,
+  ButtonLink,
   Card,
   CardHeader,
   EmptyState,
@@ -72,6 +73,7 @@ export default async function AttendancePage({
       : (sections[0]?.id ?? "");
 
   const canMark = hasPermission(session.permissions, "attendance.mark");
+  const canManageDevices = hasPermission(session.permissions, "school.settings");
 
   const [dayTotals, enrollments, existing, holiday] = await Promise.all([
     db.attendanceRecord.groupBy({
@@ -130,6 +132,13 @@ export default async function AttendancePage({
       <PageHeader
         title="Attendance"
         description={`${formatDate(day, "long")} · ${selectedSection ? `${selectedSection.classLevel.name} ${selectedSection.name}` : "select a class"}`}
+        action={
+          canManageDevices ? (
+            <ButtonLink href="/attendance/devices" variant="secondary">
+              Biometric devices
+            </ButtonLink>
+          ) : undefined
+        }
       />
 
       {holiday ? (
