@@ -21,22 +21,12 @@
   // (`wrangler secret put DATABASE_URL`). `pg` + @prisma/adapter-pg + pg-cloudflare
   // connect from the Worker.
   //
-  // Optional (recommended for serverless Postgres): put Cloudflare Hyperdrive in
-  // front for edge connection pooling. src/lib/db.ts already prefers this binding
-  // automatically when it is present — no code change needed.
-  //   1. npx wrangler hyperdrive create vidyalaya-db \
-  //        --connection-string "postgres://USER:PASS@HOST:5432/DB"
-  //   2. Uncomment the block below and paste the returned id.
-  // Hyperdrive (edge connection pooling). db.ts uses it automatically when
-  // present; otherwise it uses the direct DATABASE_URL secret. Recommended once
-  // your database's connection limits suit pooling.
-  "hyperdrive": [
-    {
-      "binding": "HYPERDRIVE",
-      "id": "46d929be46054c778b8ac3ee00355166",
-      "localConnectionString": "postgresql://postgres@localhost:5432/school_erp"
-    }
-  ],
+  // Hyperdrive is intentionally NOT bound: the app connects directly to a
+  // Neon Postgres via the DATABASE_URL secret, using Neon's own pooled endpoint
+  // (host contains `-pooler`). src/lib/db.ts prefers a HYPERDRIVE binding when
+  // present and falls back to DATABASE_URL otherwise — with no binding, it uses
+  // DATABASE_URL. To reintroduce Hyperdrive later, create a config pointing at
+  // Neon (`wrangler hyperdrive create …`) and add the binding block back here.
 
   // --- Uploads ---------------------------------------------------------------
   // Photos and homework attachments are stored in the database (the `uploads`

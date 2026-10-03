@@ -2,8 +2,23 @@ import bcrypt from "bcryptjs";
 
 const ROUNDS = 12;
 
+// IMPORTANT: use bcryptjs's SYNCHRONOUS API, never the async/Promise form.
+// bcryptjs's async implementation schedules its work with setImmediate-style
+// yields that never resume on the Cloudflare Workers runtime, so the request
+// hangs and workerd cancels it with a 500 ("your Worker's code had hung").
+// The sync variants are pure CPU, finite, and run fine on both Node and
+// Workers; the hash format is identical, so existing hashes still verify.
+
+// A real hash to compare against when no account matches, so a missing user
+// costs the same CPU as a real one (defeats user-enumeration by timing).
+// Computed lazily to keep it off the Worker's cold-start path.
+let dummyHash: string | null = null;
+function getDummyHash(): string {
+  return (dummyHash ??= bcrypt.hashSync("unused-placeholder-for-timing", ROUNDS));
+}
+
 export async function hashPassword(plain: string): Promise<string> {
-  return bcrypt.hash(plain, ROUNDS);
+  return bcrypt.hashSync(plain, ROUNDS);
 }
 
 export async function verifyPassword(
@@ -13,10 +28,10 @@ export async function verifyPassword(
   if (!hash) {
     // Still burn a comparison so a missing password hash isn't detectable by
     // response timing.
-    await bcrypt.compare(plain, "$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvaliduO");
+    bcrypt.compareSync(plain, getDummyHash());
     return false;
   }
-  return bcrypt.compare(plain, hash);
+  return bcrypt.compareSync(plain, hash);
 }
 
 export interface PasswordStrength {

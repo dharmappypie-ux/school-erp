@@ -30,7 +30,10 @@ export async function loginAction(
   const parsed = LoginSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
-    school: formData.get("school"),
+    // formData.get returns null when the field is absent; the school select can
+    // submit null, and an optional string field rejects null — coerce to
+    // undefined so "no school chosen" validates (auto-detect by email).
+    school: formData.get("school") ?? undefined,
   });
 
   if (!parsed.success) {
