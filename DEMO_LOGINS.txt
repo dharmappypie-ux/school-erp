@@ -1,0 +1,70 @@
+====================================================================
+ VIDYALAYA ERP — DEMO LOGINS
+====================================================================
+LIVE SITE:   https://school-erp-six-ashy.vercel.app/login   (Vercel + Neon)
+Local:       http://localhost:3000/login
+Leave "School" on "Detect automatically" — every email below is unique.
+
+Passwords
+  • All seeded accounts:   Password123
+  • Platform owner:        Platform123
+--------------------------------------------------------------------
+
+
+PLATFORM OWNER  (creates & manages schools — lands on /platform)
+--------------------------------------------------------------------
+  owner@vidyalaya.com                     Platform123
+
+
+====================================================================
+ GREENWOOD INTERNATIONAL SCHOOL   (/greenwood — full demo data)
+====================================================================
+  Role              Email                                Password
+  ----------------  -----------------------------------  -----------
+  Super Admin       admin@greenwood.edu.in               Password123
+  Principal         principal@greenwood.edu.in           Password123
+  Accountant        accounts@greenwood.edu.in            Password123
+  Librarian         library@greenwood.edu.in             Password123
+  Transport Mgr     transport@greenwood.edu.in           Password123
+  Hostel Warden     hostel@greenwood.edu.in              Password123
+  Teacher           teacher1@greenwood.edu.in            Password123
+                    ... through teacher20@greenwood.edu.in (one per section)
+  Student (portal)  gis20260001@greenwood.edu.in         Password123
+  Parent  (portal)  parent.gis20260001@greenwood.edu.in  Password123
+
+  Student / parent emails follow a pattern:
+    Student:  <admissionNo>@greenwood.edu.in            (e.g. gis20260001…)
+    Parent:   parent.<admissionNo>@greenwood.edu.in
+
+
+====================================================================
+ SUNRISE PUBLIC SCHOOL   (/sunrise — second tenant, sparse data)
+====================================================================
+  Role              Email                                Password
+  ----------------  -----------------------------------  -----------
+  Super Admin       admin@sunrise.edu.in                 Password123
+  Principal         principal@sunrise.edu.in             Password123
+  Accountant        accounts@sunrise.edu.in              Password123
+  Librarian         library@sunrise.edu.in               Password123
+  Teacher           teacher1@sunrise.edu.in              Password123
+                    ... through teacher5@sunrise.edu.in
+  Student (portal)  sps20260001@sunrise.edu.in           Password123
+  Parent  (portal)  parent.sps20260001@sunrise.edu.in    Password123
+
+  (Sunrise has no Transport Manager / Hostel Warden — it is the
+   deliberately-sparse tenant.)
+
+
+--------------------------------------------------------------------
+ NOTES
+--------------------------------------------------------------------
+  • Multi-tenant: a Greenwood login only ever sees Greenwood data,
+    a Sunrise login only Sunrise. The platform owner sits above both.
+  • The two schools are created by the seed (npm run db:seed).
+    New schools are created from the platform console (/platform).
+  • Bootstrap a platform owner:
+       npm run create:platform-owner -- <email> "<Full Name>" [password]
+  • TEST ARTIFACT (safe to delete): meena.admin@greenwood.edu.in was
+    created while testing the platform console (role: Admin). Remove
+    it from Platform → Greenwood → Manage, or ignore it.
+====================================================================
