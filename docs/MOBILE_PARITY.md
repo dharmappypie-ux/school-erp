@@ -75,9 +75,9 @@ A section is only ✅ when the app can perform the section's **actions**, not ju
 ---
 
 ## Build order (highest value first)
-1. **Attendance class register (admin)** — pick class + date, mark/edit P/A/L/LV, save.  ← building
-2. **Leave approve/reject (admin)** — act on pending requests.  ← building
-3. Exams marks entry (teacher/admin).
+1. ~~**Attendance class register (admin)** — pick class, mark/edit P/A/L, save.~~ ✅ DONE 2026-10-08 (verified on device)
+2. ~~**Leave approve/reject (admin)** — act on pending requests.~~ ✅ DONE 2026-10-08 (verified on device)
+3. Exams marks entry (teacher/admin).  ← next
 4. Students edit + promote; Staff edit.
 5. Fees generate invoices + refund.
 6. Library issue/return.
