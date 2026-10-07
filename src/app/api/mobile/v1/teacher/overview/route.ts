@@ -12,7 +12,7 @@ export { OPTIONS } from "@/lib/mobile-auth";
  * those classes, assignments they've set, and submissions waiting to be graded.
  */
 export async function GET(req: Request) {
-  const guard = await requireMobile(req, ["attendance.read", "homework.read", "academics.read"]);
+  const guard = await requireMobile(req, ["attendance.mark", "marks.enter", "homework.manage", "exams.manage"]);
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 

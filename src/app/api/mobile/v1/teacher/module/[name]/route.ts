@@ -26,8 +26,11 @@ const DAY_ORDER = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATU
  * leave) and school-wide for shared reads (notices, library, exams, insights).
  */
 export async function GET(req: Request, ctx: { params: Promise<{ name: string }> }) {
+  // Teaching surface: gate on capabilities only teaching staff/admins hold, so
+  // non-teaching staff (e.g. accountant, librarian) who merely have *.read on
+  // academics can't read these class-scoped views.
   const guard = await requireMobile(req, [
-    "attendance.read", "academics.read", "homework.read", "exams.read", "analytics.read",
+    "attendance.mark", "marks.enter", "homework.manage", "exams.manage",
   ]);
   if (guard instanceof NextResponse) return guard;
   const session = guard;

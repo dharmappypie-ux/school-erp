@@ -2,9 +2,48 @@ import { NextResponse } from "next/server";
 
 import { toNumber } from "@/lib/format";
 import { cors, requireMobile } from "@/lib/mobile-auth";
+import { hasPermission } from "@/lib/permissions";
 import { scopedDb, type ScopedDb } from "@/lib/tenant";
 
 export { OPTIONS } from "@/lib/mobile-auth";
+
+/**
+ * The permission that gates each admin module. The data these modules expose
+ * ranges from staff payroll to the full user directory, so each name must be
+ * authorized on its own — a single broad OR-guard let any staff role with (say)
+ * analytics.read read every module. A module absent here needs a school-admin
+ * capability by default.
+ */
+const MODULE_PERMS: Record<string, string> = {
+  students: "students.read",
+  staff: "staff.read",
+  admissions: "admissions.read",
+  classes: "academics.read",
+  subjects: "academics.read",
+  attendance: "attendance.read",
+  exams: "exams.read",
+  homework: "homework.read",
+  courses: "lms.read",
+  quizzes: "quiz.read",
+  fees: "fees.read",
+  expenses: "expenses.read",
+  payroll: "payroll.read",
+  transport: "transport.read",
+  library: "library.read",
+  hostel: "hostel.read",
+  inventory: "inventory.read",
+  leave: "leave.read",
+  notices: "notices.read",
+  messages: "messages.use",
+  broadcasts: "notifications.send",
+  analytics: "analytics.read",
+  aiinsights: "ai.insights",
+  reports: "reports.build",
+  users: "users.read",
+  roles: "roles.manage",
+  timetable: "timetable.read",
+  reportcards: "reportcards.read",
+};
 
 type Item = {
   title: string;
@@ -38,17 +77,19 @@ export async function GET(
   req: Request,
   ctx: { params: Promise<{ name: string }> },
 ) {
-  const guard = await requireMobile(req, [
-    "analytics.read",
-    "students.read",
-    "staff.read",
-    "school.read",
-    "settings.read",
-  ]);
+  const guard = await requireMobile(req);
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 
   const { name } = await ctx.params;
+
+  // Authorize the specific module, not just "some staff permission". Unknown
+  // modules fall back to a school-admin capability so new names aren't open.
+  const required = MODULE_PERMS[name] ?? "school.read";
+  if (!hasPermission(session.permissions, required)) {
+    return cors(NextResponse.json({ error: "You don't have permission to view this." }, { status: 403 }));
+  }
+
   const db = scopedDb(session.schoolId);
   const yearId = session.academicYearId;
 

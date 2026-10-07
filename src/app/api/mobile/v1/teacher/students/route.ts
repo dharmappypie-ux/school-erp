@@ -14,7 +14,7 @@ export { OPTIONS } from "@/lib/mobile-auth";
  * opens pre-filled rather than blank.
  */
 export async function GET(req: Request) {
-  const guard = await requireMobile(req, ["attendance.read", "students.read", "attendance.mark"]);
+  const guard = await requireMobile(req, ["attendance.mark", "marks.enter", "homework.manage", "exams.manage"]);
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 
