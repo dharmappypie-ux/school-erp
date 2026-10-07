@@ -9,6 +9,41 @@ import { scopedDb } from "@/lib/tenant";
 
 export { OPTIONS } from "@/lib/mobile-auth";
 
+/** GET /api/mobile/v1/admin/payment — recent receipts, for refunds. */
+export async function GET(req: Request) {
+  const guard = await requireMobile(req, ["fees.refund", "fees.read", "fees.collect"]);
+  if (guard instanceof NextResponse) return guard;
+  const session = guard;
+
+  const db = scopedDb(session.schoolId);
+  const rows = await db.payment.findMany({
+    orderBy: { paidAt: "desc" },
+    take: 80,
+    select: {
+      id: true, receiptNo: true, amount: true, refundedAmount: true, status: true, mode: true,
+      student: { select: { firstName: true, lastName: true, admissionNo: true } },
+    },
+  });
+
+  return cors(NextResponse.json({
+    items: rows.map((p) => {
+      const amt = Number(p.amount);
+      const refunded = Number(p.refundedAmount);
+      return {
+        id: p.id,
+        receiptNo: p.receiptNo,
+        studentName: `${p.student.firstName} ${p.student.lastName ?? ""}`.trim(),
+        admissionNo: p.student.admissionNo,
+        amount: amt,
+        refundedAmount: refunded,
+        refundable: Math.max(0, amt - refunded),
+        status: p.status,
+        mode: p.mode,
+      };
+    }),
+  }));
+}
+
 const Schema = z.object({
   studentId: z.string().trim().min(1, "Pick a student"),
   amount: z.union([z.string(), z.number()]),

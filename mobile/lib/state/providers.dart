@@ -77,6 +77,22 @@ final adminStaffProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
 final adminLeaveProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/leave'));
 
+/// Fee structures that can be billed.
+final feeStructuresProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/fees/structures'));
+
+/// Recent receipts, for refunds.
+final adminPaymentsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/payment'));
+
+/// Library copies free to issue.
+final libraryAvailableProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/library/available'));
+
+/// Library copies currently on loan.
+final libraryIssuedProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/library/issued'));
+
 /// The signed-in child's homework with submission state (live).
 final studentHomeworkProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/parent/homework/list'));
@@ -84,6 +100,19 @@ final studentHomeworkProvider = FutureProvider.autoDispose<Map<String, dynamic>?
 /// The teacher's homework with a to-grade tally (live).
 final teacherHomeworkProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/teacher/homework/list'));
+
+/// Exams the user can enter marks for (with their sections).
+final teacherExamsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/teacher/exams'));
+
+/// Roster + existing marks for one exam × section.
+final examRosterProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, ({String examId, String sectionId})>((ref, a) {
+  return ref.watch(apiProvider).getJson(
+    '/api/mobile/v1/teacher/exams/roster',
+    query: {'examId': a.examId, 'sectionId': a.sectionId},
+  );
+});
 
 /// Submissions for one homework, for the teacher to grade.
 final homeworkSubmissionsProvider = FutureProvider.autoDispose

@@ -7,12 +7,13 @@ import '../screens/courses_screen.dart';
 import '../screens/fees_screen.dart';
 import '../screens/notices_screen.dart';
 import '../screens/results_screen.dart';
-import '../admin/add_book.dart';
-import '../admin/collect_payment.dart';
 import '../admin/create_expense.dart';
 import '../admin/create_subject.dart';
+import '../admin/admin_fees.dart';
+import '../admin/admin_library.dart';
 import '../admin/admin_attendance.dart';
 import '../admin/admin_leave.dart';
+import '../exams/exams_marks.dart';
 import '../homework/student_homework.dart';
 import '../homework/teacher_grading.dart';
 import '../widgets/widgets.dart';
@@ -100,6 +101,8 @@ void openModule(BuildContext context, UserRole role, ModuleDef m) {
     };
   } else if (role == UserRole.teacher && m.key == 'homework') {
     screen = const TeacherHomeworkScreen();
+  } else if (role == UserRole.teacher && m.key == 'exams') {
+    screen = const ExamsScreen();
   } else if (role == UserRole.admin && _adminScreens.containsKey(m.key)) {
     screen = _adminScreens[m.key]!();
   } else {
@@ -122,6 +125,9 @@ void openModule(BuildContext context, UserRole role, ModuleDef m) {
 final Map<String, Widget Function()> _adminScreens = {
   'attendance': () => const AdminAttendanceScreen(),
   'leave': () => const AdminLeaveScreen(),
+  'exams': () => const ExamsScreen(),
+  'fees': () => const AdminFeesScreen(),
+  'library': () => const AdminLibraryScreen(),
 };
 
 /// Admin modules that have an inline create flow, keyed by module key.
@@ -132,9 +138,7 @@ class _Create {
 }
 
 final Map<String, _Create> _adminCreate = {
-  'fees': _Create('Collect', () => const CollectPaymentScreen()),
   'expenses': _Create('Record', () => const CreateExpenseScreen()),
-  'library': _Create('Add book', () => const AddBookScreen()),
   'classes': _Create('Add subject', () => const CreateSubjectScreen()),
 };
 
