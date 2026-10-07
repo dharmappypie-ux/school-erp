@@ -11,6 +11,8 @@ import '../admin/add_book.dart';
 import '../admin/collect_payment.dart';
 import '../admin/create_expense.dart';
 import '../admin/create_subject.dart';
+import '../admin/admin_attendance.dart';
+import '../admin/admin_leave.dart';
 import '../homework/student_homework.dart';
 import '../homework/teacher_grading.dart';
 import '../widgets/widgets.dart';
@@ -98,6 +100,8 @@ void openModule(BuildContext context, UserRole role, ModuleDef m) {
     };
   } else if (role == UserRole.teacher && m.key == 'homework') {
     screen = const TeacherHomeworkScreen();
+  } else if (role == UserRole.admin && _adminScreens.containsKey(m.key)) {
+    screen = _adminScreens[m.key]!();
   } else {
     final create = role == UserRole.admin ? _adminCreate[m.key] : null;
     screen = ModuleListScreen(
@@ -113,6 +117,12 @@ void openModule(BuildContext context, UserRole role, ModuleDef m) {
   }
   Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
 }
+
+/// Admin modules that open a bespoke management screen (act, not just read).
+final Map<String, Widget Function()> _adminScreens = {
+  'attendance': () => const AdminAttendanceScreen(),
+  'leave': () => const AdminLeaveScreen(),
+};
 
 /// Admin modules that have an inline create flow, keyed by module key.
 class _Create {

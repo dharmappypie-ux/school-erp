@@ -73,6 +73,10 @@ final adminStudentsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
 final adminStaffProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/staff'));
 
+/// Staff leave requests (pending first) for the admin to approve/reject.
+final adminLeaveProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/leave'));
+
 /// The signed-in child's homework with submission state (live).
 final studentHomeworkProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/parent/homework/list'));
