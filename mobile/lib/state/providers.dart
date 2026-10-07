@@ -93,6 +93,10 @@ final libraryAvailableProvider = FutureProvider.autoDispose<Map<String, dynamic>
 final libraryIssuedProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/library/issued'));
 
+/// Notices with publish/pin state, for the admin to manage.
+final adminNoticesProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/notices'));
+
 /// The signed-in child's homework with submission state (live).
 final studentHomeworkProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/parent/homework/list'));

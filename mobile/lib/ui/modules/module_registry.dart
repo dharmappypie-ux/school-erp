@@ -11,6 +11,7 @@ import '../admin/create_expense.dart';
 import '../admin/create_subject.dart';
 import '../admin/admin_fees.dart';
 import '../admin/admin_library.dart';
+import '../admin/admin_notices.dart';
 import '../admin/admin_attendance.dart';
 import '../admin/admin_leave.dart';
 import '../exams/exams_marks.dart';
@@ -128,6 +129,7 @@ final Map<String, Widget Function()> _adminScreens = {
   'exams': () => const ExamsScreen(),
   'fees': () => const AdminFeesScreen(),
   'library': () => const AdminLibraryScreen(),
+  'notices': () => const AdminNoticesScreen(),
 };
 
 /// Admin modules that have an inline create flow, keyed by module key.
