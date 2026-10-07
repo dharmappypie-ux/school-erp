@@ -73,6 +73,7 @@ class AdminHomeScreen extends ConsumerWidget {
                       child: _HeroStat(
                         label: "TODAY'S ATTENDANCE",
                         value: att == null ? '—' : '$att%',
+                        hint: d != null && att == null ? 'Not marked yet' : null,
                       ),
                     ),
                     Container(width: 1, height: 36, color: Colors.white.withValues(alpha: 0.2)),
@@ -188,9 +189,10 @@ class AdminHomeScreen extends ConsumerWidget {
 }
 
 class _HeroStat extends StatelessWidget {
-  const _HeroStat({required this.label, required this.value});
+  const _HeroStat({required this.label, required this.value, this.hint});
   final String label;
   final String value;
+  final String? hint;
   @override
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,6 +201,9 @@ class _HeroStat extends StatelessWidget {
           const SizedBox(height: 4),
           Text(value,
               style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
+          if (hint != null)
+            Text(hint!,
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 11)),
         ],
       );
 }
