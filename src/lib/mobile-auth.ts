@@ -62,13 +62,15 @@ export interface MobileSession {
  */
 export async function requireMobile(
   req: Request,
-  anyOf: string | string[],
+  anyOf: string | string[] = [],
 ): Promise<MobileSession | NextResponse> {
   const session = await resolveMobileSession(req);
   if (!session) {
     return cors(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
   }
   const needed = Array.isArray(anyOf) ? anyOf : [anyOf];
+  // No permission requested → any valid session is enough (child-scoped routes).
+  if (needed.length === 0) return session;
   const ok = needed.some((p) => hasPermission(session.permissions, p));
   if (!ok) {
     return cors(NextResponse.json(
