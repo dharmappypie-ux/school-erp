@@ -77,6 +77,8 @@ const TITLES: Record<string, string> = {
   attendance: "Attendance — today",
   exams: "Examinations",
   homework: "Homework",
+  timetable: "Timetable",
+  reportcards: "Report cards",
   courses: "Courses",
   quizzes: "Quizzes",
   fees: "Fees — invoices",
@@ -487,6 +489,35 @@ async function load(
         title: r.name, subtitle: r.key,
         trailing: r.permissions.includes("*") ? "All access" : `${r.permissions.length} perms`,
         badge: "muted",
+      }));
+      break;
+    }
+    case "timetable": {
+      const rows = await db.period.findMany({
+        orderBy: { sequence: "asc" }, take: 100,
+        select: { name: true, startTime: true, endTime: true, isBreak: true },
+      });
+      items = rows.map((r) => ({
+        title: r.name,
+        subtitle: `${r.startTime} – ${r.endTime}`,
+        trailing: r.isBreak ? "Break" : "Class",
+        badge: r.isBreak ? "muted" : "good",
+      }));
+      break;
+    }
+    case "reportcards": {
+      const rows = await db.reportCard.findMany({
+        where: { isPublished: true }, orderBy: { createdAt: "desc" }, take: 100,
+        select: {
+          grade: true, percentage: true,
+          student: { select: { firstName: true, lastName: true } },
+          term: { select: { name: true } },
+        },
+      });
+      items = rows.map((r) => ({
+        title: `${r.student.firstName} ${r.student.lastName ?? ""}`.trim(),
+        subtitle: `${r.term.name}${r.percentage != null ? ` · ${toNumber(r.percentage)}%` : ""}`,
+        trailing: r.grade ?? "", badge: "good",
       }));
       break;
     }

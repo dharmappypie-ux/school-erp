@@ -1,0 +1,14 @@
+# The Flutter mobile app (top-level only) is built into the APK, never deployed.
+# NOTE: leading slash = root-anchored, so it does NOT match src/app/api/mobile/.
+/mobile/
+
+# Build outputs & caches — Vercel rebuilds these on its own servers.
+/.next/
+/.open-next/
+/.wrangler/
+/.turbo/
+
+# Local tooling / scratch
+/.claude/
+*.apk
+*.aab
