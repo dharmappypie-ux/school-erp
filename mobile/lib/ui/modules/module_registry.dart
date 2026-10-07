@@ -5,13 +5,14 @@ import '../../theme/app_theme.dart';
 import '../screens/attendance_screen.dart';
 import '../screens/courses_screen.dart';
 import '../screens/fees_screen.dart';
-import '../screens/homework_screen.dart';
 import '../screens/notices_screen.dart';
 import '../screens/results_screen.dart';
 import '../admin/add_book.dart';
 import '../admin/collect_payment.dart';
 import '../admin/create_expense.dart';
 import '../admin/create_subject.dart';
+import '../homework/student_homework.dart';
+import '../homework/teacher_grading.dart';
 import '../widgets/widgets.dart';
 import 'module_list_screen.dart';
 
@@ -89,12 +90,14 @@ void openModule(BuildContext context, UserRole role, ModuleDef m) {
     screen = switch (m.key) {
       'attendance' => const AttendanceScreen(),
       'results' => const ResultsScreen(),
-      'homework' => const HomeworkScreen(),
+      'homework' => const StudentHomeworkScreen(),
       'courses' => const CoursesScreen(),
       'fees' => const FeesScreen(pushed: true),
       'notices' => const NoticesScreen(pushed: true),
       _ => ModuleListScreen(role: roleSegment(role), name: m.key, title: m.label, icon: m.icon),
     };
+  } else if (role == UserRole.teacher && m.key == 'homework') {
+    screen = const TeacherHomeworkScreen();
   } else {
     final create = role == UserRole.admin ? _adminCreate[m.key] : null;
     screen = ModuleListScreen(

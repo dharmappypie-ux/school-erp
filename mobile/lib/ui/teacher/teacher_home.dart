@@ -6,6 +6,7 @@ import '../../state/providers.dart';
 import '../../theme/app_theme.dart';
 import '../modules/module_registry.dart';
 import '../widgets/widgets.dart';
+import '../homework/teacher_grading.dart';
 import 'set_homework.dart';
 
 class TeacherHomeScreen extends ConsumerWidget {
@@ -79,7 +80,14 @@ class TeacherHomeScreen extends ConsumerWidget {
             children: [
               Expanded(child: StatTile(icon: Icons.assignment_rounded, value: n('homework'), label: 'Assignments set', color: AppColors.gold)),
               const SizedBox(width: 12),
-              Expanded(child: StatTile(icon: Icons.rate_review_rounded, value: n('toGrade'), label: 'To grade', color: AppColors.good)),
+              Expanded(child: StatTile(
+                icon: Icons.rate_review_rounded,
+                value: n('toGrade'),
+                label: 'To grade',
+                color: AppColors.good,
+                onTap: () => Navigator.of(context)
+                    .push(MaterialPageRoute(builder: (_) => const TeacherHomeworkScreen())),
+              )),
             ],
           ),
           const SizedBox(height: 22),
@@ -105,6 +113,16 @@ class TeacherHomeScreen extends ConsumerWidget {
                   subtitle: 'Assign work to a whole class',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const SetHomeworkScreen())),
+                ),
+                const Hairline(),
+                RowTile(
+                  icon: Icons.rate_review_outlined,
+                  iconBg: AppColors.goodSoft,
+                  iconColor: AppColors.good,
+                  title: 'Grade homework',
+                  subtitle: 'Read submissions and record marks',
+                  onTap: () => Navigator.of(context)
+                      .push(MaterialPageRoute(builder: (_) => const TeacherHomeworkScreen())),
                 ),
                 const Hairline(),
                 RowTile(

@@ -73,6 +73,23 @@ final adminStudentsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
 final adminStaffProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/staff'));
 
+/// The signed-in child's homework with submission state (live).
+final studentHomeworkProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/parent/homework/list'));
+
+/// The teacher's homework with a to-grade tally (live).
+final teacherHomeworkProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/teacher/homework/list'));
+
+/// Submissions for one homework, for the teacher to grade.
+final homeworkSubmissionsProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, String>((ref, homeworkId) {
+  return ref.watch(apiProvider).getJson(
+    '/api/mobile/v1/teacher/homework/submissions',
+    query: {'homeworkId': homeworkId},
+  );
+});
+
 /// Generic module reader — one endpoint per role serves every module's list.
 /// `role` is the path segment ('admin' | 'teacher' | 'parent').
 final moduleProvider = FutureProvider.autoDispose
