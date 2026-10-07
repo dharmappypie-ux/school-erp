@@ -14,7 +14,7 @@ class ApiClient {
           // the live deployment.
           baseUrl: baseUrl ??
               const String.fromEnvironment('API_BASE',
-                  defaultValue: 'https://vidyalaya-erp.drocklover.workers.dev'),
+                  defaultValue: 'https://school-erp-six-ashy.vercel.app'),
           connectTimeout: const Duration(seconds: 12),
           receiveTimeout: const Duration(seconds: 25),
           sendTimeout: const Duration(seconds: 25),
@@ -23,6 +23,12 @@ class ApiClient {
   final Dio _dio;
   String? _token;
 
+  /// Called when an authed request is rejected with 401 while a token is set —
+  /// i.e. the stored session is stale/expired (e.g. after switching backends).
+  /// The auth layer uses this to sign out and bounce the user to a fresh login
+  /// instead of showing permanently blank screens.
+  void Function()? onUnauthorized;
+
   void setToken(String? token) => _token = token;
 
   Options get _auth => Options(
@@ -30,12 +36,20 @@ class ApiClient {
         validateStatus: (s) => s != null && s < 500,
       );
 
+  /// Fire the stale-session hook when the server rejects a real token.
+  void _check(int? status) {
+    if (status == 401 && _token != null && !_token!.startsWith('local-')) {
+      onUnauthorized?.call();
+    }
+  }
+
   /// Pulls the latest snapshot for the signed-in child. Returns null when the
   /// server has no mobile API yet / is unreachable — the caller then keeps the
   /// local data as-is rather than wiping it.
   Future<ServerSnapshot?> pull() async {
     try {
       final res = await _dio.get('/api/mobile/v1/me/snapshot', options: _auth);
+      _check(res.statusCode);
       if (res.statusCode != 200 || res.data is! Map) return null;
       return ServerSnapshot.fromJson(res.data as Map<String, dynamic>);
     } on DioException {
@@ -54,6 +68,7 @@ class ApiClient {
         data: {'kind': item.kind, 'entityId': item.entityId, 'payload': item.payload},
         options: _auth,
       );
+      _check(res.statusCode);
       return res.statusCode == 200 || res.statusCode == 201;
     } on DioException {
       return false;
@@ -89,6 +104,7 @@ class ApiClient {
   Future<Map<String, dynamic>?> getJson(String path, {Map<String, dynamic>? query}) async {
     try {
       final res = await _dio.get(path, queryParameters: query, options: _auth);
+      _check(res.statusCode);
       if (res.statusCode == 200 && res.data is Map) {
         return Map<String, dynamic>.from(res.data as Map);
       }
@@ -104,6 +120,7 @@ class ApiClient {
       String path, Map<String, dynamic> data) async {
     try {
       final res = await _dio.post(path, data: data, options: _auth);
+      _check(res.statusCode);
       final body = res.data is Map ? Map<String, dynamic>.from(res.data as Map) : null;
       final ok = res.statusCode == 200 || res.statusCode == 201;
       return (ok: ok, body: body);

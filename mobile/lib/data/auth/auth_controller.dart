@@ -10,7 +10,19 @@ import '../remote/api_client.dart';
 /// unreachable, sign-in falls back to a local session using the role the user
 /// picked on the login screen, so the offline-first app is still usable.
 class AuthController extends ChangeNotifier {
-  AuthController(this._api, this._storage);
+  AuthController(this._api, this._storage) {
+    // A stale/expired token (e.g. left over from a previous backend) makes every
+    // authed screen come back empty. Treat a 401 as "session gone": clear it and
+    // send the user back to a fresh login instead of showing blank screens.
+    _api.onUnauthorized = _handleUnauthorized;
+  }
+
+  bool _signingOut = false;
+  void _handleUnauthorized() {
+    if (_token == null || _signingOut) return;
+    _signingOut = true;
+    signOut().whenComplete(() => _signingOut = false);
+  }
 
   final ApiClient _api;
   final FlutterSecureStorage _storage;
