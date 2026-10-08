@@ -149,6 +149,12 @@ final adminTransportProvider = FutureProvider.autoDispose<Map<String, dynamic>?>
 final adminCoursesProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/courses'));
 
+/// A class section's weekly timetable slots.
+final timetableSlotsProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, String>((ref, sectionId) {
+  return ref.watch(apiProvider).getJson('/api/mobile/v1/admin/timetable', query: {'sectionId': sectionId});
+});
+
 /// The signed-in child's homework with submission state (live).
 final studentHomeworkProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/parent/homework/list'));

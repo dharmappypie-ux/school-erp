@@ -25,6 +25,7 @@ import '../admin/admin_payroll.dart';
 import '../admin/admin_hostel.dart';
 import '../admin/admin_transport.dart';
 import '../admin/admin_courses.dart';
+import '../admin/admin_timetable.dart';
 import '../admin/admin_attendance.dart';
 import '../admin/admin_leave.dart';
 import '../exams/exams_marks.dart';
@@ -161,6 +162,7 @@ final Map<String, Widget Function()> _adminScreens = {
   'hostel': () => const AdminHostelScreen(),
   'transport': () => const AdminTransportScreen(),
   'courses': () => const AdminCoursesScreen(),
+  'timetable': () => const AdminTimetableScreen(),
 };
 
 /// Admin modules that have an inline create flow, keyed by module key.
