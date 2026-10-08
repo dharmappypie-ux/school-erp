@@ -19,7 +19,7 @@ export async function GET(req: Request) {
       select: {
         id: true, name: true, startPoint: true, endPoint: true,
         vehicle: { select: { registrationNo: true } },
-        stops: { orderBy: { sequence: "asc" }, select: { name: true, pickupTime: true } },
+        stops: { orderBy: { sequence: "asc" }, select: { id: true, name: true, pickupTime: true } },
       },
     }),
     db.vehicle.findMany({
@@ -39,7 +39,7 @@ export async function GET(req: Request) {
       name: r.name,
       vehicle: r.vehicle?.registrationNo ?? null,
       route: [r.startPoint, r.endPoint].filter(Boolean).join(" → "),
-      stops: r.stops.map((s) => ({ name: s.name, pickupTime: s.pickupTime })),
+      stops: r.stops.map((s) => ({ id: s.id, name: s.name, pickupTime: s.pickupTime })),
     })),
   }));
 }

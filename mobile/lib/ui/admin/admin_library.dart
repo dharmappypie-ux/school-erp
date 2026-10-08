@@ -72,6 +72,8 @@ class AdminLibraryScreen extends ConsumerWidget {
                           style: const TextStyle(fontSize: 12, color: AppColors.muted)),
                     ])),
                     _DueChip(onLoan[i]),
+                    if (onLoan[i]['overdue'] != true && onLoan[i]['id'] != null)
+                      _RenewButton(issueId: onLoan[i]['id'].toString()),
                   ]),
                 ),
                 if (i < onLoan.length - 1 && i < 24) const Hairline(),
@@ -81,6 +83,32 @@ class AdminLibraryScreen extends ConsumerWidget {
       ],
     );
   }
+}
+
+class _RenewButton extends ConsumerStatefulWidget {
+  const _RenewButton({required this.issueId});
+  final String issueId;
+  @override
+  ConsumerState<_RenewButton> createState() => _RenewButtonState();
+}
+
+class _RenewButtonState extends ConsumerState<_RenewButton> {
+  bool _busy = false;
+  Future<void> _renew() async {
+    setState(() => _busy = true);
+    final res = await ref.read(apiProvider).postJson('/api/mobile/v1/admin/library/renew', {'issueId': widget.issueId});
+    if (!mounted) return;
+    setState(() => _busy = false);
+    showToast(context, res.body?['message']?.toString() ?? res.body?['error']?.toString() ?? 'Done.', error: !res.ok);
+    if (res.ok) ref.invalidate(libraryIssuedProvider);
+  }
+
+  @override
+  Widget build(BuildContext context) => TextButton(
+        onPressed: _busy ? null : _renew,
+        style: TextButton.styleFrom(minimumSize: const Size(0, 32), padding: const EdgeInsets.symmetric(horizontal: 8)),
+        child: Text(_busy ? '…' : 'Renew', style: const TextStyle(fontSize: 12.5)),
+      );
 }
 
 class _DueChip extends StatelessWidget {
