@@ -164,6 +164,21 @@ final studentAttendanceProvider = FutureProvider.autoDispose
   return ref.watch(apiProvider).getJson('/api/mobile/v1/admin/student/$id/attendance');
 });
 
+/// School analytics dashboard data (enrolment, attendance, academics, finance).
+final adminAnalyticsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/analytics'));
+
+/// Dropout-risk insights, optionally filtered by level.
+final adminInsightsProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, String?>((ref, level) {
+  return ref.watch(apiProvider).getJson('/api/mobile/v1/admin/insights',
+      query: level != null ? {'level': level} : null);
+});
+
+/// Report sources the admin can run, with their fields.
+final adminReportsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/reports'));
+
 /// Report cards, to publish.
 final adminReportCardsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/reportcards'));

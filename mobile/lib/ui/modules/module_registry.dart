@@ -28,6 +28,9 @@ import '../admin/admin_hostel.dart';
 import '../admin/admin_transport.dart';
 import '../admin/admin_courses.dart';
 import '../admin/admin_timetable.dart';
+import '../admin/admin_analytics.dart';
+import '../admin/admin_insights.dart';
+import '../admin/admin_reports.dart';
 import '../admin/admin_attendance.dart';
 import '../admin/admin_leave.dart';
 import '../exams/exams_marks.dart';
@@ -52,9 +55,10 @@ class ModuleDef {
 
 const _all = {UserRole.parent, UserRole.teacher, UserRole.admin};
 const _staff = {UserRole.teacher, UserRole.admin};
-/// Modules a teacher authors through the same bespoke screen as an admin
-/// (the mobile API gates each action by permission).
-const _teacherAuthoring = {'courses', 'quizzes', 'reportcards'};
+/// Modules a teacher opens through the same bespoke screen as an admin
+/// (the mobile API gates each action by permission). Includes LMS authoring and
+/// the analytics/insights dashboards the teacher has read access to.
+const _teacherAuthoring = {'courses', 'quizzes', 'reportcards', 'analytics', 'aiinsights'};
 const _admin = {UserRole.admin};
 const _teacherAdmin = {UserRole.teacher, UserRole.admin};
 
@@ -180,6 +184,9 @@ final Map<String, Widget Function()> _adminScreens = {
   'transport': () => const AdminTransportScreen(),
   'courses': () => const AdminCoursesScreen(),
   'timetable': () => const AdminTimetableScreen(),
+  'analytics': () => const AdminAnalyticsScreen(),
+  'aiinsights': () => const AdminInsightsScreen(),
+  'reports': () => const AdminReportsScreen(),
 };
 
 /// Admin modules that have an inline create flow, keyed by module key.
