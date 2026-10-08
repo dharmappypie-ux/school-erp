@@ -13,18 +13,37 @@ export async function GET(req: Request) {
   const session = guard;
 
   const db = scopedDb(session.schoolId);
-  const rows = await db.reportCard.findMany({
-    orderBy: [{ isPublished: "asc" }, { percentage: "desc" }],
-    take: 150,
-    select: {
-      id: true, percentage: true, grade: true, rank: true, result: true, isPublished: true,
-      student: { select: { firstName: true, lastName: true, admissionNo: true } },
-      term: { select: { name: true } },
-    },
-  });
+  const yearId = session.academicYearId;
+  const [rows, terms, sections] = await Promise.all([
+    db.reportCard.findMany({
+      orderBy: [{ isPublished: "asc" }, { percentage: "desc" }],
+      take: 150,
+      select: {
+        id: true, percentage: true, grade: true, rank: true, result: true, isPublished: true,
+        student: { select: { firstName: true, lastName: true, admissionNo: true } },
+        term: { select: { name: true } },
+      },
+    }),
+    db.examTerm.findMany({
+      where: yearId ? { academicYearId: yearId } : {},
+      orderBy: { sequence: "asc" },
+      select: { id: true, name: true },
+    }),
+    db.section.findMany({
+      where: yearId ? { academicYearId: yearId } : {},
+      orderBy: [{ classLevel: { numericOrder: "asc" } }, { name: "asc" }],
+      select: { id: true, name: true, classLevel: { select: { name: true } } },
+    }),
+  ]);
+
+  const canGenerate = guard.permissions.includes("*") ||
+    guard.permissions.includes("reportcards.generate") || guard.permissions.includes("reportcards.*");
 
   return cors(NextResponse.json({
     canPublish: guard.permissions.includes("*") || guard.permissions.includes("reportcards.publish") || guard.permissions.includes("reportcards.*"),
+    canGenerate,
+    terms: terms.map((t) => ({ id: t.id, name: t.name })),
+    sections: sections.map((s) => ({ id: s.id, name: `${s.classLevel.name} · ${s.name}` })),
     items: rows.map((c) => ({
       id: c.id,
       student: `${c.student.firstName} ${c.student.lastName ?? ""}`.trim(),

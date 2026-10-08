@@ -15,6 +15,9 @@ class AdminReportCardsScreen extends ConsumerWidget {
     final async = ref.watch(adminReportCardsProvider);
     final items = (async.value?['items'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
     final canPublish = async.value?['canPublish'] == true;
+    final canGenerate = async.value?['canGenerate'] == true;
+    final terms = (async.value?['terms'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+    final sections = (async.value?['sections'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
     final unpublished = items.where((c) => c['published'] != true).length;
 
     return DetailScaffold(
@@ -30,14 +33,92 @@ class AdminReportCardsScreen extends ConsumerWidget {
             Icon(Icons.cloud_off_rounded, color: AppColors.warn), SizedBox(width: 12),
             Expanded(child: Text("Couldn't reach the school — pull down to retry.", style: TextStyle(color: AppColors.muted))),
           ]))
-        else if (items.isEmpty)
-          const AppCard(child: Text('No report cards generated yet. Generate them on the web.', style: TextStyle(color: AppColors.muted)))
-        else
-          for (final c in items) ...[
-            _CardRow(c: c, canPublish: canPublish),
-            const SizedBox(height: 10),
+        else ...[
+          if (canGenerate && terms.isNotEmpty && sections.isNotEmpty) ...[
+            _GeneratePanel(terms: terms, sections: sections),
+            const SizedBox(height: 16),
+            const SectionLabel('Generated cards'),
           ],
+          if (items.isEmpty)
+            const AppCard(child: Text('No report cards generated yet. Use Generate above to build them from recorded marks.', style: TextStyle(color: AppColors.muted)))
+          else
+            for (final c in items) ...[
+              _CardRow(c: c, canPublish: canPublish),
+              const SizedBox(height: 10),
+            ],
+        ],
       ],
+    );
+  }
+}
+
+/// Generate (recompute) report cards for a term × section from recorded marks.
+class _GeneratePanel extends ConsumerStatefulWidget {
+  const _GeneratePanel({required this.terms, required this.sections});
+  final List<Map<String, dynamic>> terms;
+  final List<Map<String, dynamic>> sections;
+  @override
+  ConsumerState<_GeneratePanel> createState() => _GeneratePanelState();
+}
+
+class _GeneratePanelState extends ConsumerState<_GeneratePanel> {
+  Map<String, dynamic>? _term;
+  Map<String, dynamic>? _section;
+  bool _busy = false;
+
+  Future<void> _generate() async {
+    if (_term == null || _section == null) {
+      showToast(context, 'Choose a term and a class.', error: true);
+      return;
+    }
+    setState(() => _busy = true);
+    final res = await ref.read(apiProvider).postJson('/api/mobile/v1/admin/reportcards/generate', {
+      'termId': _term!['id'], 'sectionId': _section!['id'],
+    });
+    if (!mounted) return;
+    setState(() => _busy = false);
+    final msg = res.body?['message'] ?? res.body?['error'] ?? (res.ok ? 'Generated.' : 'Could not generate.');
+    showToast(context, msg.toString(), error: !res.ok);
+    if (res.ok) ref.invalidate(adminReportCardsProvider);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Generate report cards',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 2),
+          const Text('Builds cards from recorded marks for a term and class.',
+              style: TextStyle(fontSize: 12.5, color: AppColors.muted)),
+          const SizedBox(height: 14),
+          AppDropdown<Map<String, dynamic>>(
+            label: 'Term',
+            required: true,
+            value: _term,
+            items: widget.terms,
+            itemLabel: (t) => t['name']?.toString() ?? '',
+            onChanged: (t) => setState(() => _term = t),
+          ),
+          const SizedBox(height: 12),
+          AppDropdown<Map<String, dynamic>>(
+            label: 'Class',
+            required: true,
+            value: _section,
+            items: widget.sections,
+            itemLabel: (s) => s['name']?.toString() ?? '',
+            onChanged: (s) => setState(() => _section = s),
+          ),
+          const SizedBox(height: 16),
+          PrimaryButton(
+            label: _busy ? 'Generating…' : 'Generate',
+            icon: Icons.auto_awesome_rounded,
+            onPressed: _busy ? null : _generate,
+          ),
+        ],
+      ),
     );
   }
 }

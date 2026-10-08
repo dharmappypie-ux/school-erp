@@ -34,6 +34,7 @@ import '../exams/exams_marks.dart';
 import '../messages/messages_screen.dart';
 import '../homework/student_homework.dart';
 import '../homework/teacher_grading.dart';
+import '../teacher/teacher_classes.dart';
 import '../widgets/widgets.dart';
 import 'module_list_screen.dart';
 
@@ -127,6 +128,10 @@ void openModule(BuildContext context, UserRole role, ModuleDef m) {
     screen = const TeacherHomeworkScreen();
   } else if (role == UserRole.teacher && m.key == 'exams') {
     screen = const ExamsScreen();
+  } else if (role == UserRole.teacher && m.key == 'classes') {
+    screen = const TeacherClassesScreen();
+  } else if (role == UserRole.teacher && m.key == 'attendance') {
+    screen = const TeacherClassesScreen();
   } else if (role == UserRole.admin && _adminScreens.containsKey(m.key)) {
     screen = _adminScreens[m.key]!();
   } else {

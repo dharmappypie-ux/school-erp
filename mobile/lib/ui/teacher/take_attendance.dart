@@ -12,6 +12,7 @@ const _statuses = [
   ('PRESENT', 'P', AppColors.good),
   ('ABSENT', 'A', AppColors.danger),
   ('LATE', 'L', AppColors.warn),
+  ('ON_LEAVE', 'Lv', AppColors.primary),
 ];
 
 class TakeAttendanceScreen extends ConsumerStatefulWidget {
