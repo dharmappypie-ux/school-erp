@@ -82,9 +82,16 @@ A section is only ✅ when the app can perform the section's **actions**, not ju
 5. ~~**Fees generate invoices + refund**~~ ✅ DONE
 6. ~~**Library issue/return**~~ ✅ DONE
 7. ~~**Notices publish/pin/unpin**~~ ✅ DONE
-8. **Messages compose/reply** — next (needs thread model)
-9. **Broadcasts send** — next (needs audience resolution)
-10. Remaining operations (hostel allocate/vacate, inventory items/movements, transport routes/stops, timetable substitute, quizzes create/publish, courses+lessons, users management, reports run, academic-year settings).
+8. ~~**Messages compose/reply** (all roles)~~ ✅ DONE (verified on device)
+9. ~~**Broadcasts send** (admin)~~ ✅ DONE
+10. Operations grab-bag — partial:
+   - ~~Inventory: add item + record movement~~ ✅ DONE
+   - ~~Quizzes: create + publish/archive~~ ✅ DONE (questions still added on web)
+   - ~~Academic years: create + set current~~ ✅ DONE
+   - **Remaining tail** (lower-frequency config / sensitive / complex — still web-only):
+     - Users management (create/role/reset-password/status) — sensitive (role + last-admin guards); highest-value next.
+     - Hostel allocate/vacate · Transport routes/stops · Timetable substitute · Courses + lessons.
+     - Reports builder (dynamic sources) — complex, low mobile value.
 4. Students edit + promote; Staff edit.
 5. Fees generate invoices + refund.
 6. Library issue/return.
