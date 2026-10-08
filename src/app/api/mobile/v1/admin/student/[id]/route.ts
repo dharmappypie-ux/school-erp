@@ -117,6 +117,19 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     status: s.status, phone: s.phone ?? "", email: s.email ?? "", gender: s.gender,
     photoUrl: s.photoUrl,
     className: sec ? `${sec.classLevel.name} · ${sec.name}` : "—",
+    // Raw editable fields (for the edit form to prefill).
+    edit: {
+      middleName: s.middleName ?? "",
+      dateOfBirth: s.dateOfBirth ? s.dateOfBirth.toISOString().slice(0, 10) : "",
+      bloodGroup: s.bloodGroup ?? "",
+      category: s.category ?? "",
+      rollNumber: enr?.rollNumber ?? s.rollNumber ?? "",
+      addressLine1: s.addressLine1 ?? "",
+      city: s.city ?? "",
+      state: s.state ?? "",
+      postalCode: s.postalCode ?? "",
+      previousSchool: s.previousSchool ?? "",
+    },
     // Back-compat single fee-payer guardian.
     guardian: payer ? {
       name: `${payer.guardian.firstName} ${payer.guardian.lastName ?? ""}`.trim(),
@@ -184,10 +197,21 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
 const Schema = z.object({
   firstName: z.string().trim().min(1, "First name is required"),
+  middleName: z.string().trim().optional(),
   lastName: z.string().trim().optional(),
   status: z.enum(["ACTIVE", "ALUMNI", "TRANSFERRED", "DROPPED", "SUSPENDED", "ON_LEAVE"]),
   phone: z.string().trim().max(20).optional(),
   email: z.string().trim().email().optional().or(z.literal("")),
+  dateOfBirth: z.string().trim().optional(),
+  gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
+  bloodGroup: z.string().trim().optional(),
+  category: z.string().trim().optional(),
+  rollNumber: z.string().trim().optional(),
+  addressLine1: z.string().trim().optional(),
+  city: z.string().trim().optional(),
+  state: z.string().trim().optional(),
+  postalCode: z.string().trim().optional(),
+  previousSchool: z.string().trim().optional(),
 });
 
 /** POST /api/mobile/v1/admin/student/[id] — update key fields + lifecycle status. */
@@ -212,10 +236,21 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     where: { id },
     data: {
       firstName: parsed.data.firstName,
+      middleName: parsed.data.middleName || null,
       lastName: parsed.data.lastName || null,
       status: parsed.data.status,
       phone: parsed.data.phone || null,
       email: parsed.data.email || null,
+      dateOfBirth: parsed.data.dateOfBirth ? new Date(parsed.data.dateOfBirth) : undefined,
+      gender: parsed.data.gender ?? undefined,
+      bloodGroup: parsed.data.bloodGroup || undefined,
+      category: parsed.data.category || undefined,
+      rollNumber: parsed.data.rollNumber || undefined,
+      addressLine1: parsed.data.addressLine1 || undefined,
+      city: parsed.data.city || undefined,
+      state: parsed.data.state || undefined,
+      postalCode: parsed.data.postalCode || undefined,
+      previousSchool: parsed.data.previousSchool || undefined,
       exitDate: leavingActive ? (existing.exitDate ?? new Date()) : returningActive ? null : existing.exitDate,
     },
   });

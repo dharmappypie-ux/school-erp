@@ -52,6 +52,9 @@ class ModuleDef {
 
 const _all = {UserRole.parent, UserRole.teacher, UserRole.admin};
 const _staff = {UserRole.teacher, UserRole.admin};
+/// Modules a teacher authors through the same bespoke screen as an admin
+/// (the mobile API gates each action by permission).
+const _teacherAuthoring = {'courses', 'quizzes', 'reportcards'};
 const _admin = {UserRole.admin};
 const _teacherAdmin = {UserRole.teacher, UserRole.admin};
 
@@ -132,6 +135,10 @@ void openModule(BuildContext context, UserRole role, ModuleDef m) {
     screen = const TeacherClassesScreen();
   } else if (role == UserRole.teacher && m.key == 'attendance') {
     screen = const TeacherClassesScreen();
+  } else if (role == UserRole.teacher && _teacherAuthoring.contains(m.key)) {
+    // Teachers hold lms.manage / quiz.manage / reportcards.generate, so they get
+    // the same bespoke authoring screens as admins; the endpoints gate each action.
+    screen = _adminScreens[m.key]!();
   } else if (role == UserRole.admin && _adminScreens.containsKey(m.key)) {
     screen = _adminScreens[m.key]!();
   } else {
