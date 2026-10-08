@@ -1,0 +1,1215 @@
+# Mobile app — full feature parity audit (teacher + admin)
+
+Generated from a 16-agent web↔app audit. **289 web features catalogued, 255 app gaps** (blocker 7, major 126, minor 122).
+
+Status: ✅ parity · ◐ partial · 👁 read-only · ❌ missing. Severity: 🔴 blocker · 🟠 major · 🟡 minor.
+
+## Gap counts by area
+
+| Role | Area | Features | Gaps | 🔴 | 🟠 | 🟡 |
+|---|---|--:|--:|--:|--:|--:|
+| admin | Students | 20 | 20 | 0 | 12 | 8 |
+| admin | Staff | 16 | 15 | 0 | 10 | 5 |
+| admin | Admissions | 16 | 16 | 2 | 10 | 4 |
+| admin | Classes/Sections/Subjects/Curriculum | 11 | 10 | 1 | 6 | 3 |
+| admin | Courses/LMS + Quizzes authoring | 20 | 19 | 3 | 9 | 7 |
+| admin | Attendance + Timetable | 18 | 16 | 0 | 8 | 8 |
+| admin | Examinations + Report cards | 15 | 13 | 1 | 3 | 9 |
+| admin | Fees + Expenses | 13 | 12 | 0 | 6 | 6 |
+| admin | Payroll | 8 | 7 | 0 | 5 | 2 |
+| admin | Transport + Hostel | 19 | 16 | 0 | 10 | 6 |
+| admin | Library + Inventory | 15 | 14 | 0 | 8 | 6 |
+| admin | Leave + Notices + Broadcasts + Messages | 24 | 19 | 0 | 5 | 14 |
+| admin | Users + Academic years + Settings | 17 | 12 | 0 | 2 | 10 |
+| admin | Analytics + AI insights + Reports + Ask | 25 | 25 | 0 | 12 | 13 |
+| teacher | Teacher daily (attendance, classes, timetable, homework author+grade, exam marks) | 19 | 12 | 0 | 4 | 8 |
+| teacher | Teacher LMS+engagement (courses manage/publish, quizzes manage/publish, report-card generate, AI insights refresh, leave, messages, read-only notices/library/analytics) | 33 | 29 | 0 | 16 | 13 |
+
+## 🔴 Blockers (core workflow unusable on mobile)
+
+- **[admin/Admissions] Open application detail** — No per-application detail screen or endpoint exists; the entire detail view (every section below) is absent on mobile.  
+  _endpoint:_ `NEEDED: /api/mobile/v1/admin/admissions/[id] GET`
+- **[admin/Admissions] Enrol accepted applicant as student (with section pick)** — No enrol flow and no section picker. Worse, the ACCEPTED card exposes an 'Enrolled' move-chip whose /move call sets status=ENROLLED WITHOUT creating any student/guardian/login/enrolment — breaking the core conversion step rather than performing it.  
+  _endpoint:_ `NEEDED: /api/mobile/v1/admin/admissions/enrol POST (+ sections-with-seats in detail GET)`
+- **[admin/Classes/Sections/Subjects/Curriculum] Assign subject to a class (teacher, weekly periods, max/pass marks; 0 periods removes it)** — App has no way to map a subject onto a class, assign/remove its teacher, set weekly periods, or set max/pass marks. The entire curriculum-mapping workflow is absent; create_subject.dart only creates the subject, never attaches it to any class.  
+  _endpoint:_ `NEEDED: /api/mobile/v1/admin/class-subject POST (assign/update/remove)`
+- **[admin/Courses/LMS + Quizzes authoring] Open a course (course detail page)** — App course cards are not tappable and there is no course detail screen, so lessons, resources, the description, and publish controls are all unreachable on mobile  
+  _endpoint:_ `NEEDED: /api/mobile/v1/admin/courses/[id] GET`
+- **[admin/Courses/LMS + Quizzes authoring] Course status controls (Publish / Unpublish / Archive / Restore)** — Unlike quizzes, the app has NO course status control anywhere and there is no courses status endpoint — a course created on mobile can never be published/archived from the app, only on web  
+  _endpoint:_ `NEEDED: /api/mobile/v1/admin/courses/status POST`
+- **[admin/Courses/LMS + Quizzes authoring] Open a quiz (quiz detail page)** — Quiz cards are not tappable to a detail screen; questions and leaderboard are entirely unreachable on mobile  
+  _endpoint:_ `NEEDED: /api/mobile/v1/admin/quizzes/[id] GET`
+- **[admin/Examinations + Report cards] Create exam paper** — No create-exam flow on mobile; the entire exam-authoring side is absent — admin can only enter marks for pre-existing exams, not create any.  
+  _endpoint:_ `NEEDED: /api/mobile/v1/admin/exams POST`
+
+## Full feature list
+
+### Admin · Students
+
+- 🟠 **Create (admit) student — form fields** — ◐ partial · effort M
+  - web: Admit form captures first/middle/last name, DOB, gender, blood group, category, class, roll number, address/city/state/postal code, previous school; plus guardian name, phone, email, relationship, occupation.
+  - gap: App form omits middle name, DOB, blood group, category, roll number, address/city/state/postal code, previous school and guardian occupation. (Endpoint already accepts dateOfBirth & rollNumber; blood group, category, address, previousSchool and occupation need adding too.)
+  - endpoint: `/api/mobile/v1/admin/students POST`
+- 🟠 **Edit student — form fields** — ◐ partial · effort M
+  - web: Edit form covers first/middle/last name, DOB, gender, blood group, category, status, exit reason, phone, email, address/city/state/postal code, previous school and medical notes.
+  - gap: App edits only first/last name, status, phone and email. Missing middle name, DOB, gender, blood group, category, exit reason, address/city/state/postal code, previous school and medical notes — the endpoint's Schema accepts none of these either.
+  - endpoint: `/api/mobile/v1/admin/student/[id] POST`
+- 🟠 **Fee history invoices table** — ◐ partial · effort M
+  - web: Paid-of-billed summary, progress bar, and a table of recent invoices (invoice no, period, due date, total, due amount, status) with an 'All payments' link.
+  - gap: App surfaces only the single outstanding-amount stat; no invoice list, no billed/paid breakdown or progress, no link to payments.
+  - endpoint: `/api/mobile/v1/admin/student/[id] GET (returns only feesOutstanding total)`
+- 🟠 **Filter by status & open non-active students** — ❌ missing · effort M
+  - web: Status filter (ACTIVE, ALUMNI, TRANSFERRED, DROPPED, SUSPENDED, ON_LEAVE); any student in any status is listed and openable from the roster.
+  - gap: The list endpoint is hardcoded to ACTIVE students only, so alumni/transferred/dropped/suspended/on-leave students cannot be listed OR opened anywhere on mobile — their profiles are completely unreachable.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/students GET add ?status= (route currently hardcodes where.status='ACTIVE')`
+- 🟠 **Guardians list** — ◐ partial · effort M
+  - web: Card listing ALL linked guardians with name, relationship, phone, occupation, and Primary / Fee-payer badges.
+  - gap: App shows only one guardian (the fee payer), with no occupation and no Primary/Fee-payer badges; additional guardians are never returned or shown.
+  - endpoint: `/api/mobile/v1/admin/student/[id] GET (returns only the single isFeePayer guardian)`
+- 🟠 **Paginate full roster** — ◐ partial · effort M
+  - web: Pagination control walks the entire roster 25 at a time with a total count.
+  - gap: App loads a single take:100 batch with no pagination; any student beyond the first 100 (ordered by admissionNo desc) cannot be reached.
+  - endpoint: `/api/mobile/v1/admin/students GET (take:100, no paging params)`
+- 🟠 **Per-student attendance history page** — ❌ missing · effort L
+  - web: Dedicated page: attendance rate / absent / late / longest-absence-run stat tiles, a monthly attendance bar chart, and a 90-session record table (date, status, source, marked by, remarks), with a <75% warning alert.
+  - gap: No per-student attendance history screen on mobile — only a single attendance-% stat appears on the detail card. The whole monthly-trend + session-log view and the sub-75% alert are absent.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/student/[id]/attendance GET`
+- 🟠 **Personal details section (DOB, blood group, category, nationality, admitted-on, address)** — ❌ missing · effort M
+  - web: Profile card listing date of birth, gender, blood group, category, nationality, admission date and full concatenated address.
+  - gap: Detail screen shows no personal details at all — no DOB, blood group, category, nationality, admission date or address. Endpoint must return these fields.
+  - endpoint: `/api/mobile/v1/admin/student/[id] GET (returns only gender, which the UI ignores)`
+- 🟠 **Receipts (payments received)** — ❌ missing · effort M
+  - web: Table of recent successful payments (receipt no, date, mode, amount), each linking to its printable receipt.
+  - gap: No per-student receipt / payment history anywhere in the app.
+  - endpoint: `NEEDED: add payments[] to /api/mobile/v1/admin/student/[id] GET`
+- 🟠 **Report cards table** — ❌ missing · effort M
+  - web: Table of report cards per term (percentage, grade, rank, published/draft status) each opening the full report card.
+  - gap: No per-student report-card list or links on mobile.
+  - endpoint: `NEEDED: add reportCards[] to /api/mobile/v1/admin/student/[id] GET`
+- 🟠 **Search students (name / admission no / email / phone)** — ❌ missing · effort S
+  - web: SearchBox filters the roster by first/last name, admission no, email or phone.
+  - gap: No search field in the app. The endpoint supports q (name + admission no only, not email/phone) but the screen never sends it, and the list is capped at 100, so large rosters are effectively un-findable.
+  - endpoint: `/api/mobile/v1/admin/students GET (already accepts ?q= for name/admissionNo, not wired in UI)`
+- 🟠 **Services section (class teacher, roll no, transport, hostel, documents)** — ❌ missing · effort M
+  - web: Card showing class teacher, roll number, transport route+stop+pickup time, hostel room+bed, and documents-on-file count (with links to transport/hostel).
+  - gap: None of class teacher, roll number, transport, hostel allocation or document count is shown on mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/student/[id] GET add classTeacher, rollNumber, transportAssignment, hostelAllocation, documents count`
+- 🟡 **Attendance below-75% warning banner** — ❌ missing · effort S
+  - web: Warning alert on the profile (and attendance page) when attendance < 75%, flagging exam-eligibility risk.
+  - gap: App already has the attendance percentage but never renders a sub-75% warning banner.
+  - endpoint: `/api/mobile/v1/admin/student/[id] GET (returns stats.attendancePercent)`
+- 🟡 **Browse students list (row metadata)** — ◐ partial · effort S
+  - web: Roster table row shows avatar photo, name, roll number, admission no, class, primary guardian name + phone, admitted date and a coloured status badge.
+  - gap: App row shows only name, class and admission no (initials instead of photo); omits primary guardian name+phone, roll number, admitted date and the status badge.
+  - endpoint: `/api/mobile/v1/admin/students GET`
+- 🟡 **Filter students by class/section** — ❌ missing · effort S
+  - web: FilterSelect narrows the roster to a single section for the current academic year.
+  - gap: No class/section filter in the app; the list endpoint has no section parameter.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/students GET add ?sectionId=`
+- 🟡 **Headline stat tiles drill-through** — ◐ partial · effort S
+  - web: Four stat tiles (attendance, average score, fees outstanding, library) whose values each link to the attendance history, report card, fee payments and library pages.
+  - gap: The four stat values are shown but the tiles are not tappable — no drill-through to attendance history, report card, fee payments or library.
+  - endpoint: `/api/mobile/v1/admin/student/[id] GET`
+- 🟡 **Promote / move student to another class** — ◐ partial · effort S
+  - web: Move form: choose target section plus an optional new roll number; closes the old enrolment (outcome PROMOTED), opens a new active one, and resets status to ACTIVE.
+  - gap: Move works and respects capacity, but the app/endpoint cannot set a new roll number and the endpoint does not re-activate status or stamp the PROMOTED outcome on the old enrolment like web does.
+  - endpoint: `/api/mobile/v1/admin/student/[id]/promote POST`
+- 🟡 **Recent assessment results** — ◐ partial · effort S
+  - web: Table of recent marks: subject, assessment/term name, score (obtained/max) and a coloured percentage badge.
+  - gap: App shows subject, exam name and raw score but omits the computed percentage and its pass/fail colour badge (web shows term name, app shows exam name).
+  - endpoint: `/api/mobile/v1/admin/student/[id] GET`
+- 🟡 **Student photo (view & upload)** — ❌ missing · effort M
+  - web: PhotoUploader displays the student photo and lets staff with students.update upload/replace it.
+  - gap: App shows initials only; no photo display and no photo upload capability.
+  - endpoint: `NEEDED: photo upload endpoint + photoUrl in /api/mobile/v1/admin/student/[id] GET`
+- 🟡 **Student profile header** — ◐ partial · effort S
+  - web: Header with avatar photo, full name including middle name, admission no, current class and status badge.
+  - gap: Header shows name, admission no, class and status chip but omits middle name and the avatar photo (icon only).
+  - endpoint: `/api/mobile/v1/admin/student/[id] GET`
+
+### Admin · Staff
+
+- 🟠 **Create-staff form fields** — ◐ partial · effort M
+  - web: Create form collects first/last name, email, phone, DOB, gender, employee-ID override, staff type, system role, department, designation, joining date, qualification, experience, and address (line1/city/state/postal); creates login + staff record with temp password.
+  - gap: App create form collects only first/last name, email, phone, staff type, role and qualification. Missing: employee-ID override, date of birth, gender, department, designation, joining date, experience, and address (line1/city/state/postal). The POST endpoint also accepts none of these except joiningDate, so backend widening is required too.
+  - endpoint: `POST /api/mobile/v1/admin/staff`
+- 🟠 **Edit-staff form fields** — ◐ partial · effort M
+  - web: Edit form updates first/last name, email, phone, system role (roleKey), employment status, staff type, department, designation, qualification, experience, DOB, gender and address; syncs name/email/role to the linked login with last-super-admin protection.
+  - gap: App edit changes only first/last name, email, staff type and employment status. Missing: phone, system role (roleKey — explicitly deferred to web), department, designation, qualification, experience, date of birth, gender, and address. The POST endpoint persists none of these extras, so it needs widening as well.
+  - endpoint: `POST /api/mobile/v1/admin/staff/[id]`
+- 🟠 **Employment section** — ❌ missing · effort M
+  - web: Employment card: joined date, qualification, experience (years), specialisation, login status (last-seen / never / no account), and PF number.
+  - gap: No employment card at all on mobile — joining date, qualification, experience, specialisation, login/last-seen and PF number are entirely absent.
+  - endpoint: `GET /api/mobile/v1/admin/staff/[id] (extend: add joiningDate, qualification, experience, specialisation, user.lastLoginAt/status, pfNumber)`
+- 🟠 **Filter by department / staff type / status** — ❌ missing · effort M
+  - web: Three FilterSelects narrow the directory by department, staff type and employment status (combinable with search).
+  - gap: No filter controls on mobile, and the endpoint accepts no department/type/status filters.
+  - endpoint: `NEEDED: GET /api/mobile/v1/admin/staff add department/type/status query params`
+- 🟠 **Personal-details section** — ◐ partial · effort M
+  - web: Personal card: date of birth, gender, blood group, phone, email, and composed address (line1, city, state, postal).
+  - gap: App Details card shows only Email, Phone, Department, Designation. Missing date of birth, gender, blood group and the full address; endpoint doesn't return them.
+  - endpoint: `GET /api/mobile/v1/admin/staff/[id] (extend: add dateOfBirth, gender, bloodGroup, address fields)`
+- 🟠 **Profile stat tiles (attendance / classes / leave / payroll)** — ◐ partial · effort M
+  - web: Four detail StatTiles: Attendance % (present/late over total), Classes taught + class-teacher count, Leave requests + pending, and Monthly gross (payroll.read) or Payslips count.
+  - gap: App stat cards cover only Subjects taught, Class teacher and Leave requests. Missing the Attendance % tile and the Monthly-gross/Payslips payroll tile; the endpoint's stats block omits attendance and payroll figures.
+  - endpoint: `GET /api/mobile/v1/admin/staff/[id] (extend stats: add attendanceRate + payroll gross/payslips)`
+- 🟠 **Salary & bank section (payroll)** — ❌ missing · effort L
+  - web: Payroll-gated card: basic salary, derived gross, net pay, effective-from, bank name, and masked account number.
+  - gap: No salary or bank details anywhere in the app profile; also requires the gross/net derivation logic the web page computes from the salary structure.
+  - endpoint: `NEEDED: GET /api/mobile/v1/admin/staff/[id] add payroll-gated salary/bank block`
+- 🟠 **Search staff (name / employee ID / email)** — ❌ missing · effort S
+  - web: SearchBox filters the directory server-side across first name, last name, employeeId, email and phone.
+  - gap: No search field in the app; the ?q= the endpoint already honors is never used, so admins must scroll the whole list.
+  - endpoint: `GET /api/mobile/v1/admin/staff?q= (param already supported, UI never sends it)`
+- 🟠 **Staff directory list + open profile** — ◐ partial · effort M
+  - web: Lists every staff member with avatar, name, staff-type, class-teacher flag, employee ID, designation, department, phone+email, joining date and a colored status badge; each row links to the profile.
+  - gap: App row shows only name, role, employeeId and a staff-type chip (no designation, department, phone/email, joining date, status badge, or class-teacher flag). Worse, the GET endpoint hardcodes employmentStatus=ACTIVE, so ON_LEAVE/PROBATION/RESIGNED/TERMINATED/RETIRED staff are invisible on mobile while web lists them.
+  - endpoint: `GET /api/mobile/v1/admin/staff`
+- 🟠 **Teaching-load table + class-teacher-of list** — ◐ partial · effort M
+  - web: Table of every subject assignment (subject + code, class, periods/week) with a weekly-periods total, plus badges listing each section they are class teacher of with student counts.
+  - gap: App exposes only count stats; there is no per-subject table (subject/class/periods) and no list of sections they are class teacher of.
+  - endpoint: `GET /api/mobile/v1/admin/staff/[id] (extend: add subjectAssignments + classTeacherOf lists)`
+- 🟡 **Directory pagination** — ❌ missing · effort M
+  - web: Server-side pagination at 25 rows/page over the full filtered directory with page counts.
+  - gap: No pagination; endpoint caps at 100 rows, so larger staff lists truncate silently.
+  - endpoint: `GET /api/mobile/v1/admin/staff (hardcoded take:100)`
+- 🟡 **Leave-balances section (non-payroll fallback)** — ❌ missing · effort S
+  - web: For admins without payroll.read, the third card instead lists leave balances per type as 'X of Y left'.
+  - gap: Leave balances per leave type are not shown in the app.
+  - endpoint: `NEEDED: GET /api/mobile/v1/admin/staff/[id] add leaveBalances`
+- 🟡 **Recent-leave table** — ◐ partial · effort M
+  - web: Table of the 6 most recent leave requests: type, date range, days, status badge and reason.
+  - gap: App shows only a leave-request count; no list of recent leave with dates, days, status or reason.
+  - endpoint: `GET /api/mobile/v1/admin/staff/[id] (extend: add recent leaveRequests list)`
+- 🟡 **Staff list summary stat tiles** — ❌ missing · effort S
+  - web: Four StatTiles on the list: Active staff, Teaching vs non-teaching split, Departments count, and pending Leave-requests count.
+  - gap: App shows only a single 'N active' line; no teaching split, department count, or pending-leave tile.
+  - endpoint: `NEEDED: GET /api/mobile/v1/admin/staff add summary counts (or reuse admin/overview)`
+- 🟡 **Staff photo upload** — ❌ missing · effort M
+  - web: PhotoUploader on the profile lets staff.update holders upload/replace the staff photo.
+  - gap: No staff photo is shown or uploadable in the app (profile uses initials only).
+  - endpoint: `NEEDED: POST /api/mobile/v1/admin/staff/[id]/photo`
+-  **Profile header + status + Edit/Back** — ✅ parity · effort S
+  - web: Profile header: avatar, name, employee ID, designation, department, status badge, plus Edit-profile and Back-to-list actions.
+  - endpoint: `GET /api/mobile/v1/admin/staff/[id]`
+
+### Admin · Admissions
+
+- 🔴 **Enrol accepted applicant as student (with section pick)** — ❌ missing · effort L
+  - web: Decision panel 'Enrol as student': choose a section of the applied-for class (shown with seats-left, full sections disabled) and, in one atomic transaction, create the student record, a guardian, portal logins for both, the enrolment, assign roll/admission numbers, mark the application ENROLLED, and email a welcome with temporary password.
+  - gap: No enrol flow and no section picker. Worse, the ACCEPTED card exposes an 'Enrolled' move-chip whose /move call sets status=ENROLLED WITHOUT creating any student/guardian/login/enrolment — breaking the core conversion step rather than performing it.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/admissions/enrol POST (+ sections-with-seats in detail GET)`
+- 🔴 **Open application detail** — ❌ missing · effort L
+  - web: Clicking an applicant opens a full detail page (header with name/app-no/class/year/status, alerts, applicant + guardian cards, decision panel, timeline, documents).
+  - gap: No per-application detail screen or endpoint exists; the entire detail view (every section below) is absent on mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/admissions/[id] GET`
+- 🟠 **Applicant personal-details section** — ❌ missing · effort M
+  - web: Detail card: date of birth, gender, applying-for class, previous school, previous class, previous percentage, and full address (line1, city, state, postal).
+  - gap: None of the applicant's personal details (DOB, gender, previous schooling, address) are shown anywhere in the app.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/admissions/[id] GET`
+- 🟠 **Application timeline (admission events)** — ❌ missing · effort M
+  - web: Detail timeline listing every stage change: from→to status, note, and date/time, newest first.
+  - gap: No stage-change history is shown on mobile; the app can move a stage but never displays the resulting audit trail.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/admissions/[id] GET (include events)`
+- 🟠 **Documents section** — ❌ missing · effort M
+  - web: Detail documents list: each document's title, kind, upload date, and a verified/unverified badge.
+  - gap: No admission documents (birth certificate, TC, mark sheets) or their verification status are viewable in the app.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/admissions/[id] GET (include documents)`
+- 🟠 **Filter by status** — ❌ missing · effort S
+  - web: Status dropdown filters the list to any of the 11 application statuses.
+  - gap: No status filter on mobile; list is always the newest 100 across all statuses.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/admissions GET (add ?status=)`
+- 🟠 **Guardian & process-details section** — ❌ missing · effort M
+  - web: Detail card: guardian name, relationship, phone, email, source, submitted date, entrance score, test date, interview date, fee-paid Yes/No, and rejection reason.
+  - gap: App lists only guardian name. Missing: relationship, phone, email, source, submitted/test/interview dates, entrance score, fee-paid flag, rejection reason.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/admissions/[id] GET`
+- 🟠 **Guardian email on Offer / Reject** — ❌ missing · effort S
+  - web: Moving an application to OFFERED or REJECTED automatically queues an email to the guardian (offer letter or regret, including the rejection reason).
+  - gap: The mobile move route never calls queueNotification, so offers/rejections made from the app silently skip the guardian email the web sends.
+  - endpoint: `/api/mobile/v1/admin/admissions/move [POST] (add queueNotification)`
+- 🟠 **Move application to next stage with a note** — ◐ partial · effort S
+  - web: Decision panel: pick an allowed next stage and add an optional note; the note is recorded on the timeline and (for REJECTED) stored as the rejection reason.
+  - gap: App shows tap-chips to move stage but provides NO note field, so it never sends the optional note the endpoint accepts — admins can't record a rejection reason or a timeline note from mobile.
+  - endpoint: `/api/mobile/v1/admin/admissions/move [POST]`
+- 🟠 **Pipeline funnel (per-stage counts, tap to filter)** — ❌ missing · effort M
+  - web: Horizontal funnel of the 7 pipeline stages (Submitted → Under review → Shortlisted → Test → Interview → Offered → Accepted), each showing its count and linking to that stage's filtered list.
+  - gap: No funnel/stage-count visualization at all; admin cannot see how many applications sit at each stage or jump to a stage.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/admissions GET (add groupBy-status counts)`
+- 🟠 **Search applications** — ❌ missing · effort S
+  - web: Search box filtering by applicant first/last name, application number, guardian name, or guardian phone.
+  - gap: No search; endpoint ignores any query and the client caps at the newest 100 rows, so older applications can't be found on mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/admissions GET (add ?q=)`
+- 🟠 **Summary KPI tiles (Applications / In pipeline / Enrolled / Offer conversion)** — ❌ missing · effort S
+  - web: Four stat tiles computed across the whole academic year: total Applications, In pipeline (awaiting decision), Enrolled (+ accepted-not-yet-enrolled sublabel), and Offer conversion % (+ rejected count).
+  - gap: App shows only '<n> applications' (a raw count of the 100-row page). None of the four KPIs — pipeline total, enrolled, accepted, offer-conversion % — are surfaced.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/admissions GET (add year-wide status counts) `
+- 🟡 **Applications list (card per application)** — ◐ partial · effort S
+  - web: List table: each row shows applicant name + 'via <source>', application no with a 'fee unpaid' flag, class, guardian name + phone, submitted date, entrance score, and a status badge; row links to the detail page.
+  - gap: Card shows only name, status chip, and 'applicationNo · className · guardian'. Missing: source ('via X'), fee-unpaid flag, guardian phone, submitted date, and entrance score. Card is also not tappable to any detail.
+  - endpoint: `/api/mobile/v1/admin/admissions [GET]`
+- 🟡 **Enrolled / fee-unpaid alerts + enrolled-student link** — ❌ missing · effort S
+  - web: Detail banners: a success alert when the applicant is enrolled (links to the created student by admission no), or a warning alert when the application fee is unpaid.
+  - gap: No enrolled/fee-unpaid banners and no deep link to the resulting student record.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/admissions/[id] GET`
+- 🟡 **Filter by class** — ❌ missing · effort S
+  - web: Class dropdown filters applications to a single applied-for class level.
+  - gap: No class filter on mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/admissions GET (add ?class=)`
+- 🟡 **Pagination** — ❌ missing · effort S
+  - web: Paginated list (20/page) with total count and page navigation.
+  - gap: Endpoint hard-takes 100 rows with no paging; applications beyond the newest 100 are unreachable on mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/admissions GET (add paging)`
+
+### Admin · Classes/Sections/Subjects/Curriculum
+
+- 🔴 **Assign subject to a class (teacher, weekly periods, max/pass marks; 0 periods removes it)** — ❌ missing · effort M
+  - web: CurriculumEditor 'Assign to class' tab + assignSubject() action: pick class level, subject, teacher (or leave unstaffed), set periods/week (0 = unassign), max marks, pass marks; validates marks; creates/updates/deletes the ClassSubject mapping and revalidates timetable.
+  - gap: App has no way to map a subject onto a class, assign/remove its teacher, set weekly periods, or set max/pass marks. The entire curriculum-mapping workflow is absent; create_subject.dart only creates the subject, never attaches it to any class.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/class-subject POST (assign/update/remove)`
+- 🟠 **Create class level (grade)** — ❌ missing · effort S
+  - web: AddClassLevel drawer + createClassLevel(): fields name, numericOrder (sort order), optional stream; enforces unique name; audited.
+  - gap: No create-class flow in the app. admin_classes.dart only lists existing sections; there is no way to add a new grade/class level, so a new class cannot be set up from mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/class-level POST`
+- 🟠 **Create section (division) for the current year** — ❌ missing · effort M
+  - web: AddSection drawer + createSection(): fields class (select), section name, capacity/seats, room number, optional class teacher (select); ties to current academic year; blocks duplicate section per class/year; audited.
+  - gap: App cannot create a section, set capacity/room, or assign a class teacher. Enrolment/promotion on mobile can only target sections that already exist, so a new division cannot be opened from the app.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/section POST (+ class-level & teacher pick lists)`
+- 🟠 **Create subject — missing fields (department, co-scholastic)** — ◐ partial · effort S
+  - web: CurriculumEditor 'New subject' tab + createSubject(): name, code, department (select), isCoScholastic checkbox (sets isGraded=false, keeps it out of the report-card percentage), isElective checkbox.
+  - gap: App form only has name, code, isElective. It cannot set department, and critically cannot mark a subject co-scholastic — so every mobile-created subject is graded and counts toward the percentage, with no way to fix it on mobile. The endpoint also ignores departmentId/isCoScholastic.
+  - endpoint: `/api/mobile/v1/admin/subject POST (exists; add departmentId + isCoScholastic; needs a departments list in meta)`
+- 🟠 **Curriculum-by-class load (allocated vs capacity periods, progress bar, over-allocation warning, 'no subjects mapped')** — ❌ missing · effort M
+  - web: 'Curriculum by class' card: per class level, a periods allocated/capacity badge, progress bar toned by load state (empty/under/exact/over), an 'over-allocated' danger alert when a class needs more periods than the week holds, and a warning when a class has no subjects mapped.
+  - gap: App lists sections with 'seats left' only. None of the period-load analytics, capacity/over-allocation signals, or 'cannot be timetabled' warnings are surfaced on mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/curriculum GET (computed load per class)`
+- 🟠 **Subjects master catalog table** — ❌ missing · effort M
+  - web: Bottom 'Subjects' card: table of every subject with name, code, department, count of classes it is mapped to, and type badges (scholastic/co-scholastic, elective, ungraded).
+  - gap: App has no school-wide subject list; subjects are only visible per class inside ClassDetailScreen (name + teacher). Admin cannot review the catalog, each subject's department, how many classes use it, or its grading/elective type on mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/subjects GET`
+- 🟠 **Teaching-load table (per teacher: periods, #assignments, light/healthy/heavy/overcommitted state)** — ❌ missing · effort M
+  - web: 'Teaching loads' card: each teacher's total weekly periods across all class-subject assignments, assignment count, and a commitment state badge against the weekly capacity; links to the staff profile; drives the 'overcommitted teachers' warning.
+  - gap: App shows nothing about teacher workload. Admin cannot see which teachers are overcommitted / cannot be timetabled from mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/teaching-loads GET`
+- 🟡 **Class stat tiles (students enrolled, weekly capacity, unstaffed subjects, overcommitted teachers)** — ❌ missing · effort S
+  - web: Four StatTiles: total students enrolled across sections, weekly teaching capacity (periods x days), count of unstaffed subjects, count of overcommitted teachers (toned).
+  - gap: App's classes screen shows no roll-up KPIs for enrolment totals, timetable capacity, unstaffed-subject count, or overcommitment count.
+  - endpoint: `NEEDED: computed (extend /api/mobile/v1/admin/meta or a curriculum endpoint)`
+- 🟡 **Per-class subject chips: weekly periods + unstaffed flag** — ◐ partial · effort S
+  - web: Within each class, subject chips show subject code + weekly periods, highlight unstaffed (no-teacher) subjects in a warning color, and visually separate co-scholastic subjects.
+  - gap: ClassDetailScreen lists each subject's name + teacher (null teacher renders as 'Unassigned'), but shows no weekly-periods figure, no max/pass marks, and no co-scholastic distinction. The endpoint doesn't return weeklyPeriods or marks.
+  - endpoint: `/api/mobile/v1/admin/class/[sectionId] GET (exists; add weeklyPeriods/maxMarks/passMarks + unstaffed)`
+- 🟡 **Per-section summary: enrolled/capacity, class teacher, room number** — ◐ partial · effort S
+  - web: Under each class the web lists every section as 'name: enrolled/capacity · class teacher' (or 'no class teacher'); AddSection also captures room number.
+  - gap: App list shows only 'N seats left'; the detail subtitle shows the class teacher but not capacity-used, and the room number (returned by the endpoint) is never displayed. No way to see/change a section's class teacher or room on mobile.
+  - endpoint: `/api/mobile/v1/admin/meta GET (seatsLeft) + /api/mobile/v1/admin/class/[sectionId] GET (capacity, classTeacher, room)`
+-  **Class roster (students: roll no, name, admission no)** — ✅ parity · effort S
+  - web: Web academics area does not render a per-section student roster itself; it is read-only context shown via section enrolment counts.
+  - endpoint: `/api/mobile/v1/admin/class/[sectionId] GET`
+
+### Admin · Courses/LMS + Quizzes authoring
+
+- 🔴 **Course status controls (Publish / Unpublish / Archive / Restore)** — ❌ missing · effort M
+  - web: CourseStatusControls on the detail page let the admin publish (needs lms.publish, blocked if 0 lessons), unpublish to draft, archive, and restore
+  - gap: Unlike quizzes, the app has NO course status control anywhere and there is no courses status endpoint — a course created on mobile can never be published/archived from the app, only on web
+  - endpoint: `NEEDED: /api/mobile/v1/admin/courses/status POST`
+- 🔴 **Open a course (course detail page)** — ❌ missing · effort L
+  - web: Tapping a course card opens /academics/courses/[id] with its header, badges, draft alert, About section, lessons list, and resources list — the container for all authoring
+  - gap: App course cards are not tappable and there is no course detail screen, so lessons, resources, the description, and publish controls are all unreachable on mobile
+  - endpoint: `NEEDED: /api/mobile/v1/admin/courses/[id] GET`
+- 🔴 **Open a quiz (quiz detail page)** — ❌ missing · effort L
+  - web: Tapping a quiz card opens /quizzes/[id] with header, badges, draft alert, attempt/avg/points stats, questions list, and leaderboard — the container for question authoring and results
+  - gap: Quiz cards are not tappable to a detail screen; questions and leaderboard are entirely unreachable on mobile
+  - endpoint: `NEEDED: /api/mobile/v1/admin/quizzes/[id] GET`
+- 🟠 **Add lesson** — ❌ missing · effort M
+  - web: AddLesson drawer form (title required, content textarea, videoUrl, durationMinutes) appends a lesson; sequence auto-assigned (lms.manage)
+  - gap: No way to add a lesson on mobile; the create-course screen explicitly tells the admin to add lessons on the web
+  - endpoint: `NEEDED: /api/mobile/v1/admin/courses/lessons POST`
+- 🟠 **Add question** — ❌ missing · effort M
+  - web: AddQuestion drawer form (prompt required, up to 4 options with min 2 non-blank + distinct, correctOption select, points default 10, explanation) appends an auto-graded MCQ (quiz.manage)
+  - gap: No question authoring on mobile; the create-quiz screen tells the admin to add questions on the web. A quiz also cannot be published until it has a question, so the mobile create→publish flow is incomplete without web
+  - endpoint: `NEEDED: /api/mobile/v1/admin/quizzes/questions POST`
+- 🟠 **Add resource (course- or lesson-level)** — ❌ missing · effort M
+  - web: AddResource drawer form (title required, type LINK/PDF/VIDEO/DOCUMENT/IMAGE/OTHER, optional lesson, url required, http(s)-validated) attaches a resource (lms.manage)
+  - gap: No way to attach a resource on mobile
+  - endpoint: `NEEDED: /api/mobile/v1/admin/courses/resources POST`
+- 🟠 **Course resources list (course detail data section)** — ❌ missing · effort M
+  - web: Course-wide resources card lists each resource with a type glyph and an outbound link (and per-lesson resources render under each lesson)
+  - gap: Resources are not surfaced anywhere in the app (the list card does not even show the resource count the web card shows)
+  - endpoint: `NEEDED: /api/mobile/v1/admin/courses/[id] GET`
+- 🟠 **Create course (form fields)** — ◐ partial · effort M
+  - web: AddCourse drawer collects title, summary, description, class, subject, and teacher, then creates a DRAFT course
+  - gap: App _CourseForm only sends title + summary. Missing: description and subject (both already supported by the endpoint), plus class level and teacher (not yet supported by the endpoint — teacher is auto-set to the acting admin). Without class, the course cannot be targeted to students
+  - endpoint: `/api/mobile/v1/admin/courses POST`
+- 🟠 **Create quiz (form fields)** — ◐ partial · effort M
+  - web: AddQuiz drawer collects title, description, class, subject, author (teacher), and time limit, then creates a DRAFT quiz
+  - gap: App _QuizForm sends title, description, subject only. Missing: class level, author/teacher, and time limit (none supported by the endpoint — teacher is auto-set to the acting admin). Without class the quiz cannot be targeted; without time limit timed quizzes cannot be set up
+  - endpoint: `/api/mobile/v1/admin/quizzes POST`
+- 🟠 **Lessons list (course detail data section)** — ❌ missing · effort M
+  - web: Lessons card lists each lesson's sequence, title, duration, has-video flag, resource count, clamped content body, and per-lesson resource chips linking out
+  - gap: No lesson data is shown anywhere in the app (the list card only shows a lesson count)
+  - endpoint: `NEEDED: /api/mobile/v1/admin/courses/[id] GET`
+- 🟠 **Questions list (quiz detail data section)** — ❌ missing · effort M
+  - web: Questions card lists each question's sequence, prompt, points, all options with the correct one highlighted, and the explanation
+  - gap: No question content is shown anywhere in the app (card shows only a question count)
+  - endpoint: `NEEDED: /api/mobile/v1/admin/quizzes/[id] GET`
+- 🟠 **Quiz leaderboard & attempt stats (quiz detail data section)** — ❌ missing · effort M
+  - web: Attempts/Average-score/Total-points stat tiles plus a top-20 leaderboard table (rank, student name + admission no, score, %, completed date)
+  - gap: No attempt results or leaderboard on mobile (the list card does not even show the attempt count the web card shows)
+  - endpoint: `NEEDED: /api/mobile/v1/admin/quizzes/[id] GET`
+- 🟡 **Courses catalogue list (card data fields)** — ◐ partial · effort S
+  - web: Each course card shows title, status, summary, class-level badge, subject badge, lesson count, resource count, total duration, and teacher
+  - gap: App card shows only title, subject, lesson count, and status chip — missing summary, class level, resource count, total duration, and teacher (endpoint returns none of these extra fields)
+  - endpoint: `/api/mobile/v1/admin/courses GET`
+- 🟡 **Courses summary stat tiles** — ❌ missing · effort S
+  - web: Four StatTiles across the courses page: Published, Drafts, Total lessons, Courses
+  - gap: App shows only an 'N courses' subtitle; no published/draft/lesson breakdown (could be derived client-side from the list)
+  - endpoint: `/api/mobile/v1/admin/courses GET`
+- 🟡 **Delete lesson** — ❌ missing · effort S
+  - web: Per-lesson Delete button removes a lesson and renumbers the rest (lms.manage)
+  - gap: No lesson delete in the app
+  - endpoint: `NEEDED: /api/mobile/v1/admin/courses/lessons DELETE`
+- 🟡 **Delete question** — ❌ missing · effort S
+  - web: Per-question Delete button removes a question and renumbers the rest (quiz.manage)
+  - gap: No question delete in the app
+  - endpoint: `NEEDED: /api/mobile/v1/admin/quizzes/questions DELETE`
+- 🟡 **Delete resource** — ❌ missing · effort S
+  - web: Per-resource Delete button removes a course/lesson resource (lms.manage)
+  - gap: No resource delete in the app
+  - endpoint: `NEEDED: /api/mobile/v1/admin/courses/resources DELETE`
+- 🟡 **Quiz bank list (card data fields)** — ◐ partial · effort S
+  - web: Each quiz card shows title, status, description, class-level badge (or 'All classes'), subject badge, question count, attempt count, and teacher
+  - gap: App card shows only title, subject, question count, and status chip — missing description, class level / 'All classes', attempt count, and teacher (endpoint returns none of these extra fields)
+  - endpoint: `/api/mobile/v1/admin/quizzes GET`
+- 🟡 **Quizzes summary stat tiles** — ❌ missing · effort S
+  - web: Four StatTiles across the quizzes page: Published, Total quizzes, Questions, Attempts
+  - gap: App shows only an 'N quizzes' subtitle; no published/question/attempt totals (could be derived client-side if the list carried the fields)
+  - endpoint: `/api/mobile/v1/admin/quizzes GET`
+-  **Quiz status controls (Publish / Unpublish / Archive / Restore)** — ✅ parity · effort S
+  - web: QuizStatusControls publish (needs quiz.publish, blocked if 0 questions), unpublish to draft, archive, and restore
+  - endpoint: `/api/mobile/v1/admin/quizzes/status POST`
+
+### Admin · Attendance + Timetable
+
+- 🟠 **Attendance — pick date (view/mark any day, not only today)** — ◐ partial · effort S
+  - web: Date input loads and marks/edits the register for ANY date; the register pre-fills with that day's existing marks.
+  - gap: Mobile hardcodes _date to DateTime.now() with no date picker, so an admin cannot view or correct a past/future day's register even though both endpoints accept a date param.
+  - endpoint: `/api/mobile/v1/teacher/students [GET] & /api/mobile/v1/teacher/attendance [POST] (both already accept `date`; UI gap only)`
+- 🟠 **Biometric devices — activate / deactivate** — ❌ missing · effort S
+  - web: Per-device Activate/Deactivate toggle in the Manage slide-over; a deactivated device's punches are rejected at ingest.
+  - gap: No way to enable/disable a reader from the app.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/devices/{id}/status [POST]`
+- 🟠 **Biometric devices — list + stats** — ❌ missing · effort M
+  - web: StatTiles (Devices count/active, Punches today, Unmatched punches, source=Biometric) plus a table of devices: name, serial, IP, type, location, last seen, punch count, active/inactive badge. Gated on school.settings.
+  - gap: There is no biometric-devices module in the app at all — not in module_registry.dart, no screen, no provider, no endpoint.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/devices [GET]`
+- 🟠 **Biometric devices — regenerate API key** — ❌ missing · effort S
+  - web: Per-device 'Regenerate key' action in the Manage slide-over; issues a new key (shown once) and invalidates the old one.
+  - gap: No way to rotate a device's API key from the app.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/devices/{id}/key [POST]`
+- 🟠 **Biometric devices — register a device** — ❌ missing · effort M
+  - web: 'Add device' drawer form (name, serial number, device type select, location, IP address); on save it returns the API key ONCE for the device config.
+  - gap: Admin cannot register a biometric reader from the app.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/devices [POST]`
+- 🟠 **Timetable — clash detection & 'Check for clashes' audit** — ❌ missing · effort M
+  - web: Page flags N scheduling clashes (teacher/section double-booked) with a red alert, a 'Clash details' list (first 6: kind, day, period, lesson count), and a 'Check for clashes' button that re-audits the stored grid.
+  - gap: App shows no clash state and has no audit action; an admin cannot see whether the stored timetable has conflicts.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/timetable/audit [GET]`
+- 🟠 **Timetable — generate / regenerate timetable** — ❌ missing · effort L
+  - web: Scheduling panel (gated timetable.manage): pick scope (whole school or a class level) and working days (Mon–Fri / Mon–Sat), then 'Generate timetable' rebuilds the grid from subject-teacher assignments without clashes and reports any shortfall.
+  - gap: The app cannot create or regenerate a timetable at all — the primary timetable-building workflow is web-only.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/timetable/generate [POST]`
+- 🟠 **Timetable — teacher schedule view (by-teacher toggle)** — ❌ missing · effort M
+  - web: View toggle switches the grid to a chosen teacher's weekly schedule across all their sections, plus a StatTile for that teacher's weekly load.
+  - gap: App only supports the by-class view; there is no way to look up an individual teacher's weekly timetable/load.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/timetable?teacherId= [GET] (extend existing route)`
+- 🟡 **Attendance — day totals summary (Marked today / Present % / Absent)** — ◐ partial · effort S
+  - web: Three StatTiles across all classes: Marked today (count), Present % (present+late ÷ marked, with count), Absent (count, 'guardians can be notified').
+  - gap: App lists raw per-status counts (Present N, Absent N, Late N) but not the derived Marked-today total, the Present-% figure, or the absent 'can be notified' framing.
+  - endpoint: `/api/mobile/v1/admin/module/attendance [GET]`
+- 🟡 **Attendance — holiday / weekend indicator** — ❌ missing · effort S
+  - web: When the chosen date is a holiday (named) or a weekend, the page shows an info alert that attendance is usually not recorded.
+  - gap: No holiday/weekend awareness anywhere in the mobile attendance flow.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/attendance/day-info?date= [GET] (holiday/weekend lookup)`
+- 🟡 **Attendance — register row detail & per-status tally** — ◐ partial · effort S
+  - web: Each row shows the admission number under the name; the sheet header shows a live per-status summary (Present N / Absent N / Late N / Leave N) and an 'already recorded, editing' hint.
+  - gap: Mobile row shows only roll + name (admission number returned by the API is not displayed) and the hero shows only 'marked present X/total' — no Absent/Late/Leave breakdown or edit hint.
+  - endpoint: `/api/mobile/v1/teacher/students [GET] (already returns admissionNo + status)`
+- 🟡 **Biometric devices — connection / ingest instructions** — ❌ missing · effort S
+  - web: Reference card showing the absolute POST ingest URL, auth headers (serial + x-device-key), and a sample JSON payload for configuring a reader.
+  - gap: Setup reference is web-only; acceptable but absent.
+  - endpoint: `none (informational panel)`
+- 🟡 **Biometric devices — recent punches table** — ❌ missing · effort M
+  - web: Table of the last 20 punches: time, device, external ref, matched person (student/staff) or 'unmatched', direction (IN/OUT), processed/pending state.
+  - gap: No punch log / unmatched-punch visibility in the app.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/devices/punches [GET]`
+- 🟡 **Biometric devices — reprocess unmatched punches** — ❌ missing · effort S
+  - web: 'Reprocess unmatched' button re-attempts matching of punches that never matched a person; reports scanned/resolved counts.
+  - gap: No reprocess action in the app.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/devices/reprocess [POST]`
+- 🟡 **Timetable — class schedule view** — ◐ partial · effort M
+  - web: Weekly grid (periods × Mon–Sat) per section: each cell shows subject code + teacher (or 'unstaffed'), color-coded per subject, break rows spanned, clashing lessons ringed red, and a subject-key legend.
+  - gap: App renders slots as a per-day list (subject · period · teacher) only — no grid, no per-subject color coding, no break-period rows, no clash highlighting, and no subject legend.
+  - endpoint: `/api/mobile/v1/admin/timetable?sectionId= [GET]`
+- 🟡 **Timetable — summary stats** — ❌ missing · effort S
+  - web: StatTiles: Scheduled periods (whole year), this class's/teacher's filled periods out of weekly capacity, Clashes count, Sections count.
+  - gap: No scheduled-periods / fill-vs-capacity / clash / section counters in the app.
+  - endpoint: `NEEDED: include counts in /api/mobile/v1/admin/timetable response`
+-  **Attendance — class/section selector** — ✅ parity · effort S
+  - web: Dropdown to pick ANY section for the current year (teacher's own classes sorted first with a '· my class' tag; admin sees the full list). Selects which register opens.
+  - endpoint: `/api/mobile/v1/admin/meta [GET] (sections list)`
+-  **Attendance — mark/edit class register (roster + statuses + save)** — ✅ parity · effort S
+  - web: Per-student register (roll, name, admission no) with 4 status buttons PRESENT/ABSENT/LATE/ON_LEAVE, 'Mark all present', Save (upserts one record per student per day); admin can mark any class.
+  - endpoint: `/api/mobile/v1/teacher/students [GET] + /api/mobile/v1/teacher/attendance [POST]`
+
+### Admin · Examinations + Report cards
+
+- 🔴 **Create exam paper** — ❌ missing · effort M
+  - web: AddExam drawer (exams.manage): fields term, class, subject, exam name, max marks, pass marks; dedupes term+class+subject+name
+  - gap: No create-exam flow on mobile; the entire exam-authoring side is absent — admin can only enter marks for pre-existing exams, not create any.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/exams POST`
+- 🟠 **Create exam term** — ❌ missing · effort M
+  - web: AddExamTerm drawer (exams.manage): fields name, sequence, start date, end date, weightage (%); dedupes by name within the current academic year
+  - gap: ExamsScreen only lists exams; there is no Add-term action, so an admin cannot create an exam term on mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/exams/terms POST`
+- 🟠 **Publish to parents (section-wide + guardian notification)** — ◐ partial · effort M
+  - web: publishCards (reportcards.publish): publishes a whole section's unpublished cards in one action and queues an exam_result PUSH to each primary guardian
+  - gap: Mobile publishes/unpublishes one card at a time and does NOT notify guardians — no section-wide publish-all and no exam_result push. (Mobile does add per-card unpublish, which web lacks.)
+  - endpoint: `/api/mobile/v1/admin/reportcards/publish POST (per-card, no notification)`
+- 🟠 **Report card detail view** — ❌ missing · effort L
+  - web: Full card: school letterhead, term+year, particulars (name incl. middle, admission, class, roll, DOB, class teacher), scholastic table (subject, max, obtained, %, grade, remark + total), co-scholastic grades, summary (%, grade/GPA, class rank, attendance present/total), result, remarks, signature lines
+  - gap: No single-report-card screen on mobile; admin cannot see subject-wise marks, GPA, attendance, remarks, co-scholastic grades or particulars — only the one aggregate list row.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/reportcards/[id] GET`
+- 🟡 **Class results table (rank / marks / result)** — ◐ partial · effort S
+  - web: Table ordered by rank: rank, student+admission, obtained/total marks, %, grade, PASS/FAIL/ABSENT result badge, published/draft state
+  - gap: Mobile card row shows %/grade/rank only; omits obtained/total marks, the PASS/FAIL/ABSENT result, admission no, and a rank-ordered per-class view.
+  - endpoint: `/api/mobile/v1/admin/reportcards GET`
+- 🟡 **Exam paper row (schedule + marks-entry progress)** — ◐ partial · effort M
+  - web: Per-paper table row: class, subject+code, scheduled date/time, max marks, marks-entered progress bar (entered/expected candidates), status badge, Enter/View marks link
+  - gap: Mobile row shows name/subject/class/term/max/status but omits the scheduled date-time and the per-paper marks-entry progress (entered/expected).
+  - endpoint: `/api/mobile/v1/teacher/exams GET (no schedule or progress fields)`
+- 🟡 **Exam-term summary stat tiles** — ◐ partial · effort M
+  - web: StatTiles: exams-in-term count, marks-entered % (entered/expected papers), report-cards count, term status (Published / In progress)
+  - gap: Mobile shows only an exam count; no marks-entry completion %, report-card count, or term-published status.
+  - endpoint: `/api/mobile/v1/teacher/exams GET (lacks completion/report-card/term-status aggregates)`
+- 🟡 **Exams list term + class filters** — ❌ missing · effort S
+  - web: Two FilterSelects scope the exam-papers table by exam term and by class
+  - gap: Mobile lists all exams flat (take 100) with no term or class filter.
+  - endpoint: `/api/mobile/v1/teacher/exams GET (returns all, no filter params)`
+- 🟡 **Live mark-sheet tally** — ❌ missing · effort S
+  - web: Header badges compute live: Entered, Pending, Absent, Below-pass counts plus Average and Highest
+  - gap: Mobile has no live entered/pending/absent/failing tally or average/highest readout while entering marks.
+  - endpoint: `/api/mobile/v1/teacher/exams/roster GET (data present, not summarized)`
+- 🟡 **Mark-sheet validation & pass highlighting** — ◐ partial · effort S
+  - web: Client flags out-of-range entries and blocks Save; highlights below-pass marks (warning); shows pass marks; Enter/Arrow keys walk the column
+  - gap: Mobile shows no pass-mark threshold, no below-pass highlight, no pre-save range guard (relies on server rejecting), and no keyboard column navigation.
+  - endpoint: `/api/mobile/v1/teacher/exams/marks POST (server still enforces range)`
+- 🟡 **Print / export report card** — ❌ missing · effort M
+  - web: PrintButton renders the formatted report card for printing (print:border-0 layout)
+  - gap: No way to print, export, or share a report card PDF from the mobile app.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/reportcards/[id] GET (then client-side PDF/share)`
+- 🟡 **Report cards term + class filter** — ❌ missing · effort S
+  - web: FilterSelect term + section scope the class-results table
+  - gap: Mobile lists all report cards globally with no term/class filter.
+  - endpoint: `/api/mobile/v1/admin/reportcards GET (returns 150, no filter)`
+- 🟡 **Report-cards summary stat tiles** — ◐ partial · effort M
+  - web: StatTiles: cards-in-term, Passed (count + %), Needs attention (fail+absent), Class average + published count
+  - gap: Mobile shows only unpublished/total counts; no pass/fail/absent breakdown or class average.
+  - endpoint: `/api/mobile/v1/admin/reportcards GET (no aggregate stats)`
+-  **Generate report cards** — ✅ parity · effort S
+  - web: GeneratePanel (reportcards.generate): recompute totals/grades/rank for a term × section from recorded marks
+  - endpoint: `/api/mobile/v1/admin/reportcards/generate POST`
+-  **Marks entry grid (enter marks / mark absent)** — ✅ parity · effort S
+  - web: MarksGrid: pick section, per-student mark input + absent checkbox (roll, name, admission), Save; server validates 0–max and advances exam to MARKS_ENTRY
+  - endpoint: `/api/mobile/v1/teacher/exams/marks POST (+ roster GET)`
+
+### Admin · Fees + Expenses
+
+- 🟠 **Fees summary KPIs (Billed, Collected + collection rate %, Outstanding + overdue count, Collected today + receipt count)** — ❌ missing · effort S
+  - web: Fees page shows 4 StatTiles: total billed + invoice count; collected + collection-rate %; outstanding + # overdue; today's collection + # receipts — all read-only finance headline numbers
+  - gap: AdminFeesScreen shows only Actions + an invoice list; none of the Billed/Collected/Outstanding/Collected-today KPIs or their counts are surfaced anywhere in the Fees area. module/fees returns only invoice rows, no aggregates
+  - endpoint: `NEEDED: /api/mobile/v1/admin/fees/summary GET (or extend /api/mobile/v1/admin/module/fees to return aggregates)`
+- 🟠 **Invoices list (search by invoice/student/admission, status filter, pagination; columns invoiceNo+period, student link, admission no, due date w/ overdue flag, total, balance, status badge)** — ◐ partial · effort M
+  - web: Paginated 20/page invoice table with text search (invoiceNo, first/last name, admissionNo), a status dropdown filter, overdue-date highlighting, separate Total and Balance columns, status badges, and a link to each student
+  - gap: Inline list is capped at 20 with no search box, no status filter, and no pagination; endpoint returns a truncated shape (student name, period/invoiceNo, total, due) — missing admission no, explicit due date, separated total vs balance columns, and the tap-through to the student
+  - endpoint: `/api/mobile/v1/admin/module/fees GET`
+- 🟠 **Payments / receipts list page (today & all-time KPIs, most-used mode; receipts table with student, applied-to invoices, mode+gateway, received time, amount+refunded, status; search + mode filter + pagination)** — ❌ missing · effort M
+  - web: Dedicated /fees/payments screen: 4 KPIs, and a 30/page receipts table searchable by receipt no / txn ref / student, filterable by mode, showing applied-to invoice numbers, gateway, received date+time, amount with refunded delta, and status
+  - gap: There is no browsable payments/receipts screen in the app; the admin/payment GET data is consumed only inside the Refund dropdown, so an admin cannot list, search, or filter receipts on mobile
+  - endpoint: `/api/mobile/v1/admin/payment GET (exists but only feeds the refund picker)`
+- 🟠 **Receipt detail + print view (school header, receipt meta, student/class/roll, applied-to breakdown table, total, amount-in-words, refund note, reference/gateway/cheque, remarks, print)** — ❌ missing · effort L
+  - web: /fees/payments/[id] renders a full printable fee receipt: receipt no/date/mode, student + admission + class + roll, per-invoice applied breakdown with balance-after, total received, amount in words, refund details, reference/gateway/cheque/recorded metadata, remarks, signatory lines, and a Print button
+  - gap: No single-receipt detail or printable/shareable receipt view exists on mobile
+  - endpoint: `NEEDED: /api/mobile/v1/admin/payment/[id] GET`
+- 🟠 **Record expense form (category free-text w/ known list, amount, tax, paidTo, date, mode, reference no, description)** — ◐ partial · effort M
+  - web: Records a numbered voucher with category (free text + datalist of known categories), amount, Tax amount, paidTo, a required paid-on Date (future-dated blocked), payment mode (9 options), Reference no, and Description
+  - gap: Mobile form (and endpoint) is missing Tax amount, the paid-on Date picker (always stamps now()), and Reference no; category is a fixed 9-item preset rather than free-text/known-categories; mode offers 6 of the 9 web modes
+  - endpoint: `/api/mobile/v1/admin/expense POST`
+- 🟠 **Top defaulters worklist (students with largest outstanding balances, with class/section, link to student)** — ❌ missing · effort M
+  - web: Side card lists up to 8 students carrying the largest balances, worst first, with class-section and a link to each student profile — the collection worklist
+  - gap: No defaulters / outstanding-balance worklist exists anywhere in the mobile Fees area
+  - endpoint: `NEEDED: /api/mobile/v1/admin/fees/defaulters GET`
+- 🟡 **Collect payment form (student, amount, mode, reference, remarks)** — ◐ partial · effort S
+  - web: Records an offline/counter payment against a student's oldest open invoices first; student list limited to those with an outstanding balance; mode offers 8 options incl. DEMAND_DRAFT, WALLET, ADJUSTMENT; optional reference and remarks; queues an email receipt to the fee payer
+  - gap: Core flow works, but mobile mode dropdown (and the endpoint's enum) offers only 6 modes — missing DEMAND_DRAFT, WALLET, ADJUSTMENT; student picker lists all students rather than only those with a balance
+  - endpoint: `/api/mobile/v1/admin/payment POST`
+- 🟡 **Collection progress bar (rate %, collected-of-billed, overdue-past-due amount)** — ❌ missing · effort S
+  - web: Fees page renders a ProgressBar of collection rate with text: collected of billed, and how much of the outstanding balance is past its due date
+  - gap: No collection-progress visualization or past-due amount shown on mobile
+  - endpoint: `NEEDED: /api/mobile/v1/admin/fees/summary GET`
+- 🟡 **Expenses summary KPIs (This month + voucher count, All time, # Categories, Tax recorded)** — ❌ missing · effort S
+  - web: Expenses page shows 4 StatTiles: this-month spend + voucher count, all-time spend, category count, and total tax recorded
+  - gap: Expenses opens the generic read-only list with no KPI tiles; no month/all-time/category-count/tax totals on mobile
+  - endpoint: `NEEDED: /api/mobile/v1/admin/expenses/summary GET (or extend /api/mobile/v1/admin/module/expenses)`
+- 🟡 **Expenses voucher list (search by voucher/payee/description, category filter; columns voucher+description, category, paidTo+mode+reference, date, amount+tax)** — ◐ partial · effort M
+  - web: Vouchers table (most recent 60) searchable by voucher no / payee / description and filterable by category, showing description, category badge, paidTo, payment mode, reference no, date, and amount with included-tax line
+  - gap: Generic list has no search box and no category filter; endpoint item shape omits tax amount, payment mode, reference no, and description — only category/voucher/paidTo/date/amount are shown
+  - endpoint: `/api/mobile/v1/admin/module/expenses GET`
+- 🟡 **Generate invoices form (fee structure, due date override, period label)** — ◐ partial · effort S
+  - web: Drawer form with structure select (required), optional Due date override, and optional Period label; bills every active student in the structure, skipping already-billed
+  - gap: Mobile form only sends structureId; the Due date and Period label inputs are absent even though the endpoint already accepts dueDate and period
+  - endpoint: `/api/mobile/v1/admin/fees/generate POST`
+- 🟡 **Spend-by-category breakdown table (category, voucher count, total, share bar)** — ❌ missing · effort S
+  - web: Full-width table summarising every category with voucher count, total spend, and a share-of-total progress bar across all vouchers
+  - gap: No per-category spend breakdown or share visualization on mobile
+  - endpoint: `NEEDED: /api/mobile/v1/admin/expenses/summary GET`
+-  **Refund a payment (pick receipt, amount, reason)** — ✅ parity · effort S
+  - web: From a receipt, refund part or all; amount prefilled to max refundable, reason required; reverses the paid amount across the receipt's invoices proportionally and reopens their balances
+  - endpoint: `/api/mobile/v1/admin/payment/refund POST`
+
+### Admin · Payroll
+
+- 🟠 **Mark entire month as paid (bulk settle)** — ❌ missing · effort S
+  - web: RunPanel 'Mark month as paid' button: markPayrollPaid updates ALL unpaid payslips for the selected month/year to PAID (paidOn=now) in one action.
+  - gap: Mobile can only mark one payslip paid at a time (per-slip 'Mark paid'); there is no single-tap 'mark the whole month paid' action that the web offers.
+  - endpoint: `admin/payroll/paid [POST] takes a single payslipId only; NEEDED: accept {month, year} for a bulk month settle (or a new admin/payroll/paid-month [POST])`
+- 🟠 **Payroll summary stat tiles (gross / net / deductions totals, structures + active-staff counts)** — ◐ partial · effort M
+  - web: Four StatTiles: payslip count + active-staff count; gross total + deductions total; net-payable total + 'X of Y paid'; salary-structure count + total assignments.
+  - gap: Mobile header shows only 'N unpaid · N payslips'. Missing all money totals (gross, net payable, deductions), paid-of-total, salary-structure count/assignments, and active-staff count.
+  - endpoint: `admin/payroll [GET] — NEEDED: return aggregated gross/net/deduction totals, paid count, structure/assignment counts, active-staff count (currently returns none)`
+- 🟠 **Payslips table — per-row Days (paid/working + LOP), Gross, Deductions, designation, paid-on date** — ◐ partial · effort M
+  - web: Each row shows avatar, name, employeeId, designation, paidDays/workingDays with LOP-days callout, gross earnings, total deductions, net pay, status badge, and the paid-on date.
+  - gap: Mobile _SlipRow shows only staff name, period and net pay. Missing working/paid days, LOP days, gross earnings, deductions, designation, and the paid-on date (employeeId is returned by the API but not rendered).
+  - endpoint: `admin/payroll [GET] — returns only id/staff/employeeId/period/netPay/status; NEEDED: add gross, totalDeductions, workingDays, paidDays, lopDays, paidOn, designation`
+- 🟠 **Salary structures section (components + assignment counts)** — ❌ missing · effort M
+  - web: Card listing every active salary structure: name, 'N assigned' badge, and color-coded component chips showing each component's name and either a fixed amount or a percent of basic/gross, grouped by EARNING / DEDUCTION / EMPLOYER_CONTRIBUTION.
+  - gap: The entire salary-structures card — structures, their components and assignment counts — is absent on mobile; the GET endpoint returns no structure data.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/payroll/structures [GET] (or include structures in admin/payroll [GET])`
+- 🟠 **View payslips for a specific month/year (period filter + navigation)** — ◐ partial · effort M
+  - web: Page is scoped to a selected ?month&year (defaults to current month); header shows 'Month Year'; the payslips table and all stat tiles reflect only that period.
+  - gap: Mobile shows a single flat 'recent 120' list spanning every month with no way to filter/navigate to one month's payslips; the month/year dropdowns in the app only drive Run payroll, not the list being viewed.
+  - endpoint: `admin/payroll [GET] — exists but returns the most-recent 120 payslips across ALL months; NEEDED: add month/year query params so a chosen period can be viewed`
+- 🟡 **'Staff without a salary structure' warning banner** — ❌ missing · effort S
+  - web: A warning Alert appears when N active staff have no salary assignment, noting they are skipped by the payroll run until a salary is assigned.
+  - gap: Mobile surfaces no proactive warning about unassigned staff; the count only appears buried in the run-result toast after Run payroll is executed.
+  - endpoint: `admin/payroll [GET] — NEEDED: return staffWithoutSalary count`
+- 🟡 **Open staff profile from a payslip row** — ❌ missing · effort S
+  - web: Each payslip's staff cell links to /staff/{id}, opening that staff member's detail page.
+  - gap: Mobile payslip rows are not tappable to the staff member's profile; the GET endpoint does not return the staff id to navigate with.
+  - endpoint: `existing admin staff detail screen; admin/payroll [GET] — NEEDED: include staff id in each row to enable navigation`
+-  **Run payroll — generate draft payslips for a month/year** — ✅ parity · effort S
+  - web: RunPanel 'Generate payslips' button: picks month + year, POSTs runPayroll which recomputes DRAFT payslips for every active staff member with a salary structure (skipping already-PAID), prorating for unpaid leave; returns a summary message.
+  - endpoint: `admin/payroll/run [POST]`
+
+### Admin · Transport + Hostel
+
+- 🟠 **Add hostel block** — ❌ missing · effort M
+  - web: Hostel page "Add block" drawer creates a block: name, type (Boys/Girls/Mixed), warden (staff select), contactPhone, address (saveBlock, hostel.manage).
+  - gap: App cannot create a hostel block or assign a warden; no block-create form or endpoint.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/hostel/block POST`
+- 🟠 **Add hostel room** — ❌ missing · effort M
+  - web: Hostel page "Add room" drawer creates a room: block, roomNumber, floor, capacity (beds), roomType (Single/Double/Triple/Dormitory), monthlyFee; enforces unique room number per block (addRoom, hostel.manage).
+  - gap: App cannot add rooms or set bed capacity/fees; only existing rooms are listed. No room-create form or endpoint.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/hostel/room POST`
+- 🟠 **Add route (create)** — ❌ missing · effort M
+  - web: Transport page "Add route" drawer creates a route: name, code, vehicleId (assign bus), startPoint, endPoint, distanceKm (saveRoute, transport.manage).
+  - gap: App cannot create a route; admin_transport tells the user "Create routes on the web." No route-create form or endpoint.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/transport/route POST`
+- 🟠 **Add vehicle (fleet onboarding)** — ❌ missing · effort M
+  - web: Transport page "Add vehicle" drawer creates a vehicle: registrationNo, vehicleType (Bus/Van/Car/Tempo), model, capacity, driverName, driverPhone, driverLicense, gpsDeviceId, insuranceExpiry, fitnessExpiry, pollutionExpiry (saveVehicle, transport.manage).
+  - gap: App has no way to add or edit a vehicle; transport screen only manages stops. No fleet/driver/compliance-date capture exists.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/transport/vehicle POST`
+- 🟠 **Fleet view with vehicle compliance & tracker** — ❌ missing · effort M
+  - web: Fleet table lists every vehicle: reg no, model/type, assigned route, driver name+phone, capacity, and VALID/EXPIRING/EXPIRED badges for insurance, fitness and pollution certificates, plus tracker freshness (LIVE/RECENT/STALE/NO_SIGNAL).
+  - gap: App has no vehicle/fleet view at all — no compliance (expired-insurance) visibility, no driver contact, no tracker status. Transport GET returns only routes+stops.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/transport/fleet GET (or extend transport GET with vehicles+compliance)`
+- 🟠 **Gender safeguarding check on allocation** — ◐ partial · effort S
+  - web: Web allocateRoom calls canAllocate(student.gender, block.type): a gendered block refuses a mismatched student, and a student with no/OTHER gender is refused rather than defaulted — a hard safeguarding rule.
+  - gap: The mobile allocate endpoint never selects student gender or calls canAllocate, so it will place a student into a wrong-gender block that the web blocks; the app form also doesn't surface gender. Safeguarding rule missing on mobile.
+  - endpoint: `/api/mobile/v1/admin/hostel/allocate POST (exists, but omits the gender guard)`
+- 🟠 **Misplaced-resident safeguarding alert** — ❌ missing · effort S
+  - web: Hostel page computes residents sitting in a gender-mismatched block and shows a danger alert listing them (name + gender + block), plus a "wrong block" badge per resident row.
+  - gap: App never flags gender-mismatched placements; the endpoint returns neither student gender nor block type, so this safeguarding signal is absent on mobile.
+  - endpoint: `/api/mobile/v1/admin/hostel GET (NEEDED: student gender + block type to flag mismatches)`
+- 🟠 **Route detail — live GPS tracking map** — ❌ missing · effort L
+  - web: Route detail page plots the vehicle's recent ping trail and stop coordinates on an SVG map, with last-reported time, km covered, current speed, tracker-freshness tile and a stale-position warning.
+  - gap: App has no per-route detail screen; live/last-known vehicle position and tracking are entirely absent on mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/transport/route/[id] GET (with pings)`
+- 🟠 **Route detail — rider roster** — ❌ missing · effort L
+  - web: Route detail lists all assigned students grouped by boarding stop: student (link), class/section, stop (with sequence), direction (pickup/drop) and primary guardian phone; plus a Riders tile with seats left.
+  - gap: App cannot show who rides a route, their class, boarding stop, direction or guardian phone — no roster screen or endpoint. Removes the key emergency/contact view.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/transport/route/[id] GET`
+- 🟠 **Routes list — seat occupancy / distance / stop count / compliance** — ◐ partial · effort M
+  - web: Routes table shows per route: occupancy progress bar (assigned/capacity) with EMPTY/HEALTHY/NEARLY_FULL/OVERLOADED state badge, stop count, distance (km), assigned vehicle reg, and links to the route detail.
+  - gap: App lists routes with name, start→end and inline stops only. No occupancy/seat usage, no overload indicator, no distance or stop count; endpoint returns none of these.
+  - endpoint: `/api/mobile/v1/admin/transport GET (NEEDED: add capacity, assignedCount/occupancy, distanceKm, stopCount)`
+- 🟡 **Add stop to a route** — ✅ parity · effort S
+  - web: Server action addStop appends a stop (name, pickupTime, dropTime, monthlyFare, auto sequence) to a route (transport.manage). Note: this action is not wired to any web UI, but the data is web-backed.
+  - endpoint: `/api/mobile/v1/admin/transport/stop POST`
+- 🟡 **Block grouping with warden & contact** — ◐ partial · effort M
+  - web: Hostel page groups rooms/residents under each block card, showing block type, warden name, contact phone, and a per-block occupancy progress bar.
+  - gap: App shows a flat rooms list and flat allocations list; room labels include the block name but there is no block grouping, warden identity, contact phone or per-block occupancy bar.
+  - endpoint: `/api/mobile/v1/admin/hostel GET (NEEDED: block type, warden name+phone grouping)`
+- 🟡 **Hostel occupancy summary tiles** — ◐ partial · effort S
+  - web: Stat tiles: residents + beds free, overall occupancy %, number of blocks (with types), and placement-issues count; each toned by occupancy state.
+  - gap: App only shows raw "N rooms · M allocated" in the subtitle. No beds-free, occupancy %, or placement-issue KPIs.
+  - endpoint: `/api/mobile/v1/admin/hostel GET (NEEDED: total beds, beds free, occupancy %, block/issue counts)`
+- 🟡 **Resident row detail (class, allocated date, bed)** — ◐ partial · effort S
+  - web: Per-block resident table shows each resident's class/section, room number, bed number, allocated-on date and a wrong-block badge where applicable.
+  - gap: App allocation rows show only student name and "Block · Room (bed)". Class/section and allocated-on date are not returned or shown.
+  - endpoint: `/api/mobile/v1/admin/hostel GET (NEEDED: class/section, allocatedOn)`
+- 🟡 **Room grid visual (occupancy color, fee, floor)** — ◐ partial · effort S
+  - web: Per-block room grid colour-codes each room by state (empty/available/full/over-capacity), shows occupied/capacity and the room's monthly fee; room form also captures floor.
+  - gap: App rooms list shows occupied/capacity with a full/not-full colour only — no per-state grid, no monthly fee, no floor.
+  - endpoint: `/api/mobile/v1/admin/hostel GET (NEEDED: monthlyFee, floor)`
+- 🟡 **Route detail — per-stop fare, drop time & rider count** — ◐ partial · effort S
+  - web: Route detail Stops panel shows each stop in pickup order with pickup time, drop time, monthly fare (in school currency) and the number of riders boarding there.
+  - gap: App renders stop name + pickup time inline only. Drop time, monthly fare and per-stop rider count are not returned or shown.
+  - endpoint: `/api/mobile/v1/admin/transport GET (NEEDED: add dropTime, monthlyFare, riderCount per stop)`
+- 🟡 **Transport dashboard tiles & safety alerts** — ❌ missing · effort S
+  - web: Stat tiles (students transported vs total seats, active vehicles, certificates expiring within 30 days, expired count) plus danger alerts for not-road-legal vehicles and over-capacity routes.
+  - gap: App shows only a plain route count in the subtitle. No KPI tiles and, notably, no expired-certificate or overloaded-route safety banners.
+  - endpoint: `/api/mobile/v1/admin/transport GET (NEEDED: summary counts + alert flags)`
+-  **Allocate a student to a room (place)** — ✅ parity · effort S
+  - web: Hostel "Place a student" drawer allocates a bed: student (unhoused only), room (only rooms with a free bed), bed number; checks existing allocation, capacity and gender eligibility (allocateRoom, hostel.manage).
+  - endpoint: `/api/mobile/v1/admin/hostel/allocate POST`
+-  **Vacate a bed** — ✅ parity · effort S
+  - web: Server action vacateAllocation frees an active allocation (sets inactive + vacatedOn). Note: not wired to a web UI button, but the data model and action are web-backed.
+  - endpoint: `/api/mobile/v1/admin/hostel/vacate POST`
+
+### Admin · Library + Inventory
+
+- 🟠 **Inventory: Add category** — ❌ missing · effort S
+  - web: AddCategory drawer: name (req), description. createCategory checks for name clash and creates an InventoryCategory.
+  - gap: No create-category action anywhere in the mobile inventory screen, and no category endpoint. Admins cannot create categories or (consequently) assign items to one from the app.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/inventory/category POST`
+- 🟠 **Inventory: Add item form** — ◐ partial · effort M
+  - web: AddItem drawer: name (req), sku, category (select), unit, location, opening quantity (req), reorder level (req), unit cost, notes. Seeds an 'Opening stock' IN movement when quantity > 0.
+  - gap: Mobile form only has name, sku, unit, opening qty, reorder level. Missing: category, location (endpoint supports location but form never sends it), unit cost, notes. Endpoint itself ignores categoryId/unitCost/notes and does NOT seed the opening-stock movement the web writes, so a mobile-created item with stock has no ledger row and no value/category.
+  - endpoint: `/api/mobile/v1/admin/inventory/item POST`
+- 🟠 **Inventory: Item detail (header + on-hand/status/unit-cost/stock-value tiles)** — ❌ missing · effort M
+  - web: Item detail page: header (name, sku, category, location) and four StatTiles — On hand (+unit, tone by status), Status (+reorder at X), Unit cost (per unit), Stock value (on-hand x unit cost).
+  - gap: There is no item detail screen on mobile at all — you cannot open an individual item to see its stats, unit cost, or stock value.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/inventory/item/[id] GET`
+- 🟠 **Inventory: Item movement history / ledger** — ❌ missing · effort M
+  - web: Movement history table on the item page (newest 100): when, type badge, signed qty, balance after, reference, note.
+  - gap: No per-item stock ledger on mobile. Admins cannot review receipts/issues/adjustments history for an item.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/inventory/item/[id] GET (include movements) or /inventory/item/[id]/movements GET`
+- 🟠 **Library: Add book / title** — ◐ partial · effort M
+  - web: AddBook drawer form: title (req), author, isbn, publisher, category, language, rackNumber, publishYear, price, copies-count (req, min 1). Server generates N accession-numbered BookCopy rows.
+  - gap: Form only has title/author/category/isbn/publisher. Missing: language, rackNumber, publishYear, price, and the copies-count field. Critically, the mobile endpoint creates the Book with ZERO BookCopy rows (no copies:{create} block like web actions.ts), so a book added on mobile has no accession-numbered copies and can never be issued.
+  - endpoint: `/api/mobile/v1/admin/book POST`
+- 🟠 **Library: Books-on-loan circulation table (with live fines)** — ◐ partial · effort M
+  - web: Table of open loans: title + accession + renew count, borrower (student with class + link, or staff), issued date, due date + relative days, live-computed FINE badge (with capped flag), and the Return action.
+  - gap: Mobile list shows only title, borrower name, accession, due date and an overdue chip (capped at 25 rows). Missing per-loan fine amount, issued date, renew count, and borrower class/student link. The /issued endpoint does not return any fine figure, so overdue cost is invisible on mobile.
+  - endpoint: `/api/mobile/v1/admin/library/issued GET`
+- 🟠 **Library: Catalogue browse + search** — ❌ missing · effort M
+  - web: Catalogue card with SearchBox (title/author/ISBN/category) and a table of books: title, author, category, rack, copies available/total, out-of-circulation count, available / all-on-loan status badge.
+  - gap: Admin library module opens the bespoke AdminLibraryScreen (not the generic list), which has no catalogue at all — you cannot browse titles, search, or see per-title copy counts/availability on mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/library/catalogue GET (q search param)`
+- 🟠 **Library: Issue a copy (borrower = student OR staff, custom loan days)** — ◐ partial · effort S
+  - web: IssueBook drawer: pick available copy, choose EITHER a student OR a staff member, set loan days (default 14, 1-90). Issues copy, sets it ISSUED, due = now + days.
+  - gap: Mobile only lets you pick a student (no staff-member borrower option, though the endpoint accepts staffId) and has no loan-days field (endpoint silently uses dueDateFor default). Staff cannot borrow a book from the app.
+  - endpoint: `/api/mobile/v1/admin/library/issue POST`
+- 🟡 **Inventory: Delete item** — ❌ missing · effort S
+  - web: DeleteItemButton on item detail: confirm dialog, then deleteItem removes the item and its whole movement ledger, redirects to list.
+  - gap: No delete-item action on mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/inventory/item DELETE`
+- 🟡 **Inventory: Item notes display** — ❌ missing · effort S
+  - web: Item detail shows a Notes card (whitespace-preserved) when the item has notes.
+  - gap: Item notes are neither captured on add nor displayed anywhere in the app.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/inventory/item/[id] GET (notes field)`
+- 🟡 **Inventory: Record movement form (reference field)** — ◐ partial · effort S
+  - web: RecordMovement drawer: item (select / fixed), type IN/OUT/ADJUST, quantity (req), reference, note. One transaction updates balance + writes ledger row.
+  - gap: Mobile movement form has item/type/quantity/note but omits the Reference field (PO number / issued-to), even though the endpoint already accepts reference.
+  - endpoint: `/api/mobile/v1/admin/inventory/movement POST`
+- 🟡 **Inventory: Stat tiles + low-stock alert** — ◐ partial · effort S
+  - web: Four StatTiles (Total items, Low/out of stock + out count, Stock value at unit cost, Categories) and a warning Alert listing low/out items with qty/reorder.
+  - gap: Mobile shows a 'Stock (n)' count and per-row low-stock icons only. Missing total-items / low-out / stock-value / categories tiles and the aggregated low-stock alert.
+  - endpoint: `/api/mobile/v1/admin/inventory/items GET`
+- 🟡 **Inventory: Stock-on-hand table + tap-through** — ◐ partial · effort M
+  - web: Table of all items: name (link to detail), sku, location, category, on-hand qty + unit, reorder level, status badge (OK/LOW/OUT), stock value. Rows link to the item detail page.
+  - gap: Mobile list shows only name, a low-stock warning icon, and qty + unit; rows are not tappable. Missing category, location, reorder level, explicit status, and stock value columns (the /items endpoint returns only id/name/sku/unit/quantity/low).
+  - endpoint: `/api/mobile/v1/admin/inventory/items GET`
+- 🟡 **Library: Stat tiles + overdue fines alert** — ❌ missing · effort S
+  - web: Four StatTiles (Titles + physical copies, Available on shelf, On loan + overdue count, Fines outstanding + lost/damaged count) and a warning Alert summing total fines accrued with the per-loan cap.
+  - gap: Mobile shows only an 'On loan (n)' section label. No titles/copies/available totals, no total fines-outstanding figure, and no overdue fines alert.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/library/summary GET (or derive)`
+-  **Library: Return a copy** — ✅ parity · effort S
+  - web: Per-loan Return button; returnBook closes the loan, computes fine from return date, puts copy back AVAILABLE (web UI always sends condition=AVAILABLE).
+  - endpoint: `/api/mobile/v1/admin/library/return POST`
+
+### Admin · Leave + Notices + Broadcasts + Messages
+
+- 🟠 **Broadcast delivery log (batch history)** — ❌ missing · effort M
+  - web: Table of recent sends grouped by batch: timestamp, channel + provider, subject/body snippet, recipient count, and status (N sent / N failed / queued).
+  - gap: No history of past broadcasts on mobile; admin cannot see what was sent, to how many, or delivery status. No endpoint returns the notificationLog batches.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/broadcast/log GET`
+- 🟠 **Check audience (pre-send preview)** — ❌ missing · effort M
+  - web: 'Check audience' button calls previewBroadcast without sending: shows reachable count, unreachable count, duplicates collapsed, SMS segments/encoding and total segments, and a sample list of who cannot be reached. Send is blocked until a successful preview.
+  - gap: Mobile sends blind with no audience-size/reachability/SMS-segment preview; no preview endpoint exists. Admin can message hundreds without knowing the count first.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/broadcast/preview POST`
+- 🟠 **Create notice form** — ◐ partial · effort M
+  - web: New-notice drawer: Title, Body, multi-select Audience (ALL/PARENTS/STUDENTS/STAFF), 'Limit to one class' (sectionId), 'Expires on' date, 'Pin to top' checkbox, and two submit paths — Publish now vs Save as draft.
+  - gap: Mobile form has Title, Body, Audience, Pin only and always publishes. Missing fields: section/class scoping (sectionId), expiry date (expiresAt), and the Save-as-draft option. The /admin/notice endpoint schema also omits sectionId and expiresAt.
+  - endpoint: `/api/mobile/v1/admin/notice POST`
+- 🟠 **Notice board list (full notice content)** — ◐ partial · effort M
+  - web: Each notice shows title, Pinned/Draft/Expired badges, full body text, published date (or 'drafted' date), audience, target section/class, author name, and expiry date.
+  - gap: Mobile card shows only title, pinned icon, Published/Draft chip and audience. Missing: notice body text, author, target section/class, published/drafted date, expiry date, and Expired badge. Endpoint returns none of these fields.
+  - endpoint: `/api/mobile/v1/admin/notices GET`
+- 🟠 **Start new conversation with a parent/guardian** — ❌ missing · effort M
+  - web: New-message recipient picker: a staff sender (admin is staff) can start a thread with staff AND with guardians/parents (labelled 'parent of {child} ({admissionNo})'); server creates or reuses the 1:1 thread.
+  - gap: recipients endpoint returns active staff only, so a mobile admin can never start a conversation with a parent/guardian even though the web explicitly allows it for staff senders. (messages/send POST already supports recipientId, so only the recipient list needs guardians added.)
+  - endpoint: `/api/mobile/v1/messages/recipients GET`
+- 🟡 **Broadcast summary stat tiles** — ❌ missing · effort S
+  - web: Four StatTiles: Messages logged (+ batch count), Sent, Queued, Failed.
+  - gap: No delivery stat tiles on mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/broadcast/log GET`
+- 🟡 **Channels in use card** — ❌ missing · effort S
+  - web: Card listing per-channel message totals (groupBy channel).
+  - gap: No per-channel usage breakdown on mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/broadcast/log GET`
+- 🟡 **Filter leave requests by status** — ❌ missing · effort S
+  - web: FilterSelect dropdown filters the request table by PENDING / APPROVED / REJECTED / CANCELLED (via ?status= query).
+  - gap: No status filter control on mobile; list always shows all (pending-first). Endpoint does not accept a status param.
+  - endpoint: `/api/mobile/v1/admin/leave GET`
+- 🟡 **Leave requests list (all staff, pending first)** — ◐ partial · effort S
+  - web: Table of every staff leave request ordered pending-first: staff avatar+name+employeeId (linked to /staff/{id}), leave type with 'unpaid' badge, from–to dates + relative-days + reason, days count, status badge with approver name, and decidedAt timestamp for decided rows.
+  - gap: Card shows staffName, type, days, dates, reason, status chip only. Missing: approver name, decidedAt (who/when decided), unpaid-leave badge, employeeId (returned by API but not rendered), link to staff profile, and relative-days hint.
+  - endpoint: `/api/mobile/v1/admin/leave GET`
+- 🟡 **Leave summary stat tiles** — ◐ partial · effort S
+  - web: Four StatTiles: Pending count (+ pending days awaiting decision), Approved count, Rejected count, Leave-types count (+ unpaid count).
+  - gap: Mobile shows only a subtitle '{pending} pending · {total} total'. No Approved/Rejected/Leave-types breakdown tiles or pending-days total.
+  - endpoint: `/api/mobile/v1/admin/leave GET`
+- 🟡 **Leave types (school policy) card** — ❌ missing · effort S
+  - web: Card listing every leave type with its code and annual quota (days) or 'unpaid'.
+  - gap: Leave-types policy reference is not shown or fetched anywhere in the mobile leave screen.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/leave/overview GET (balances+types+holidays)`
+- 🟡 **Messages summary stat tiles** — ❌ missing · effort S
+  - web: Three StatTiles: Conversations, Unread (total), Messages (total count).
+  - gap: No conversations/unread/messages count tiles on mobile (only a '{n} conversations' subtitle).
+  - endpoint: `/api/mobile/v1/messages/threads GET`
+- 🟡 **New-conversation subject field** — ◐ partial · effort S
+  - web: New-message form includes an optional Subject for the new thread.
+  - gap: Mobile NewMessageScreen has no Subject input; it sends recipientId+body only. The send endpoint accepts subject, so only the UI field is missing.
+  - endpoint: `/api/mobile/v1/messages/send POST`
+- 🟡 **No-provider-configured notice** — ◐ partial · effort S
+  - web: Info Alert warning that with no SMTP/MSG91/WhatsApp credentials messages are logged/queued, not transmitted.
+  - gap: No up-front banner on mobile; the 'recorded, not sent' caveat is only surfaced in the toast after a send, not before composing.
+  - endpoint: `/api/mobile/v1/admin/broadcast POST`
+- 🟡 **Notices summary stat tiles** — ❌ missing · effort S
+  - web: Four StatTiles: Published, Pinned, Drafts (hidden from audience), Expired (past end date).
+  - gap: No published/pinned/draft/expired count tiles on mobile.
+  - endpoint: `/api/mobile/v1/admin/notices GET`
+- 🟡 **Notification templates card** — ❌ missing · effort S
+  - web: Card listing active notificationTemplates used by automatic notifications: name, key, channel badge, and variables.
+  - gap: Templates reference list is absent on mobile; no endpoint returns templates.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/broadcast/templates GET`
+- 🟡 **Open thread and read messages** — ◐ partial · effort S
+  - web: Thread view: title, participant count, chronological message bubbles each with sender name + timestamp, mine vs theirs styling; opening marks the thread read.
+  - gap: Bubbles render mine/theirs body only. Missing per-message sender name and timestamp, and the participant count. (Mark-read on open is handled by the endpoint.)
+  - endpoint: `/api/mobile/v1/messages/thread GET`
+- 🟡 **Upcoming holidays card** — ❌ missing · effort S
+  - web: Card listing the next up-to-6 holidays with name and date (or date range).
+  - gap: No upcoming-holidays section on mobile; no endpoint returns holiday rows.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/leave/overview GET (balances+types+holidays)`
+- 🟡 **Your leave balances card** — ❌ missing · effort M
+  - web: For a staff-linked user, a card listing each leave type's available/allocated balance with a colored ProgressBar (danger/warning/success by remaining days).
+  - gap: No balances section on mobile; the admin/leave endpoint returns requests only, not the viewer's own leaveBalance rows.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/leave/overview GET (balances+types+holidays)`
+-  **Approve / Reject a pending leave request** — ✅ parity · effort S
+  - web: DecideButtons call decideLeave: set APPROVED/REJECTED, record approver+decidedAt, debit paid-leave balance on approve / credit back on reversal, queue staff notification, audit.
+  - endpoint: `/api/mobile/v1/admin/leave/decide POST`
+-  **Compose + send broadcast** — ✅ parity · effort S
+  - web: Composer sends to an audience (ALL_PARENTS/STUDENTS/STAFF, TEACHING_STAFF, SECTION_PARENTS, FEE_DEFAULTERS) over a channel (EMAIL/SMS/WHATSAPP/IN_APP), with class picker for SECTION_PARENTS, optional email subject, and body; dedupes guardians, logs a batch, audits.
+  - endpoint: `/api/mobile/v1/admin/broadcast POST`
+-  **Conversation list** — ✅ parity · effort S
+  - web: List of the user's threads (most recent first): computed title, unread count badge, last-message preview, relative time.
+  - endpoint: `/api/mobile/v1/messages/threads GET`
+-  **Publish / Unpublish / Pin / Unpin a notice** — ✅ parity · effort S
+  - web: NoticeActions toggle controls on each notice calling updateNotice (publish, withdraw, pin, unpin) with audit.
+  - endpoint: `/api/mobile/v1/admin/notices POST`
+-  **Send a reply in a thread** — ✅ parity · effort S
+  - web: Composer posts to the thread (Enter to send), re-checks membership server-side, bumps lastMessageAt and marks sender read.
+  - endpoint: `/api/mobile/v1/messages/send POST`
+
+### Admin · Users + Academic years + Settings
+
+- 🟠 **Audit log — activity list (action, record, actor, IP, time)** — ❌ missing · effort M
+  - web: /settings/audit: paginated table of audit entries — action badge, entity type + entity id, actor name/email + IP address, timestamp + relative time.
+  - gap: The entire audit log view is absent from the app — no 'audit' module in the registry, no screen, and no mobile endpoint. Admin cannot review who changed what on mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/audit GET`
+- 🟠 **School profile — identity details (read-only)** — ❌ missing · effort M
+  - web: Settings page 'School profile' card displays name, code, slug, email, phone, city/state, address, locale, created date, plus currency, timezone and active/inactive status tiles.
+  - gap: No mobile screen shows the school's profile/identity (name, code, slug, contact, address, locale, currency, timezone, active status). The app 'Settings' tab is a parent-style account/sync screen, not the admin school profile.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/school GET`
+- 🟡 **Academic years — create year (name, start, end, make-current)** — ◐ partial · effort S
+  - web: 'Add academic year' drawer: name, start date, end date, and a make-current select; first year created is auto-set current.
+  - gap: All form fields present (name, start, end, make-current toggle). Behavioral gap: the mobile endpoint does NOT auto-mark the first-ever created year as current (web does when existingCount===0), so a fresh school's first year can be left with no current year unless the toggle is on.
+  - endpoint: `POST /api/mobile/v1/admin/years`
+- 🟡 **Academic years — section count per year** — ❌ missing · effort S
+  - web: Years table shows a 'Sections' column: how many sections are attached to each year (_count.sections).
+  - gap: App year cards show only name + span + current; the per-year section count column is not shown and the endpoint does not return it.
+  - endpoint: `GET /api/mobile/v1/admin/years (would need to add sections count to payload)`
+- 🟡 **Audit log — search and record-type filter** — ❌ missing · effort S
+  - web: Audit page SearchBox (action or record id) plus a FilterSelect by entity/record type.
+  - gap: Depends on the missing audit screen; no search or record-type filtering available on mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/audit GET (with q + entity params)`
+- 🟡 **Audit log — summary stat tiles** — ❌ missing · effort S
+  - web: Audit page StatTiles: total matching entries, last-24-hour count, active accounts in last 24h, distinct record types.
+  - gap: No audit summary metrics surfaced on mobile (part of the absent audit feature).
+  - endpoint: `NEEDED: /api/mobile/v1/admin/audit GET (would need aggregates)`
+- 🟡 **Roles — list with user counts, permission counts and system/custom type** — ◐ partial · effort S
+  - web: Settings + Users pages show a Roles table: role name, description/key, number of users holding it, permission count ('all' for *), and system-vs-custom badge.
+  - gap: Roles open the generic read-only list showing only name, key and permission count. Missing: per-role user count and the system/custom type badge. (Read-only on web too, so no write gap.)
+  - endpoint: `GET /api/mobile/v1/admin/module/roles`
+- 🟡 **Users — account list (rich columns)** — ◐ partial · effort M
+  - web: Users table: avatar, name (linked to staff profile when a staff record exists), employeeId/'no staff record', role badges (all roles), email + phone, last-signed-in date + joined date, status badge.
+  - gap: App rows show only name, single (first) role, email and status chip. Missing: phone, last-login date, joined date, staff employeeId, link to staff profile, and multiple-role display (only roles[0] is sent/shown).
+  - endpoint: `GET /api/mobile/v1/admin/users`
+- 🟡 **Users — change access status (Suspend / Deactivate / Reactivate)** — ◐ partial · effort S
+  - web: Manage slide-over offers three states: Suspend (SUSPENDED), Deactivate (INACTIVE), and Reactivate (ACTIVE), with self/last-super-admin guards.
+  - gap: App only toggles ACTIVE <-> SUSPENDED. The distinct 'Deactivate' (INACTIVE) action is missing from the UI even though the endpoint already accepts INACTIVE.
+  - endpoint: `POST /api/mobile/v1/admin/users/[id]/status`
+- 🟡 **Users — filter by role and by status** — ❌ missing · effort S
+  - web: Two FilterSelects narrow the list by role key and by status (ACTIVE/PENDING/SUSPENDED/INACTIVE).
+  - gap: No role or status filter controls in the app user list.
+  - endpoint: `GET /api/mobile/v1/admin/users (client-side filter, or add query params)`
+- 🟡 **Users — search by name/email** — ❌ missing · effort S
+  - web: SearchBox filters users by first/last name or email (server-side contains query).
+  - gap: App loads up to 200 users as a flat list with no search box; finding a user in a large school requires manual scrolling.
+  - endpoint: `GET /api/mobile/v1/admin/users (client-side filter, or add ?q= support)`
+- 🟡 **Users — summary stat tiles** — ❌ missing · effort S
+  - web: Four StatTiles: total users, active count, suspended-or-locked count, never-signed-in count.
+  - gap: App shows only a '<n> logins' subtitle; the active / suspended / never-signed-in breakdown tiles are absent.
+  - endpoint: `GET /api/mobile/v1/admin/users (would need counts in payload)`
+-  **Academic years — list (name + date span)** — ✅ parity · effort S
+  - web: Settings page + /settings module: table of all academic years showing name and start–end date range, newest first, with the current one badged.
+  - endpoint: `GET /api/mobile/v1/admin/years`
+-  **Academic years — set current year** — ✅ parity · effort S
+  - web: 'Make current' button on each non-current year switches the active session (transaction clears old current).
+  - endpoint: `POST /api/mobile/v1/admin/years/current`
+-  **Users — change role** — ✅ parity · effort S
+  - web: Manage slide-over: dropdown replaces the user's role set with a single role (gated on roles.manage; blocks orphaning last super admin / platform owner).
+  - endpoint: `POST /api/mobile/v1/admin/users/[id]/role`
+-  **Users — create login (first, last, email, phone, role)** — ✅ parity · effort S
+  - web: 'Add user' drawer creates a standalone login and reveals a one-time password shown once.
+  - endpoint: `POST /api/mobile/v1/admin/users`
+-  **Users — reset password (one-time password)** — ✅ parity · effort S
+  - web: Manage slide-over: 'Reset password' issues a fresh one-time password and forces change at next sign-in; shown once.
+  - endpoint: `POST /api/mobile/v1/admin/users/[id]/password`
+
+### Admin · Analytics + AI insights + Reports + Ask
+
+- 🟠 **AI insights — Per-student dropout-risk list with explanation + factors** — ❌ missing · effort M
+  - web: Students ranked by 0–100 score with level badge, progress bar, plain-English explanation, and top-3 contributing factors (points/max + detail); each links to the student.
+  - gap: The explainable dropout-risk scoring (RiskScore + factor breakdown) is entirely absent on mobile; the same-named app module shows an unrelated generic AiInsight card feed instead.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/insights/risk GET`
+- 🟠 **AI insights — Recompute dropout-risk scores (write action)** — ❌ missing · effort S
+  - web: 'Recompute scores' button runs the risk model over active students, writes RiskScore rows, records an audit entry, and reports counts assessed / elevated.
+  - gap: No way to trigger risk scoring from the app.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/insights/refresh POST`
+- 🟠 **AI insights — Risk-level summary tiles (scored / critical / high / low)** — ❌ missing · effort S
+  - web: StatTiles with student counts per risk level (each filtering the list) plus a last-computed timestamp.
+  - gap: The app's 'AI insights' module reads a different AiInsight feed (title/body/severity), not RiskScore; no per-level counts or scored total.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/insights/risk GET`
+- 🟠 **Analytics — 4 headline KPI tiles with 30-day trends** — ◐ partial · effort M
+  - web: Active students (+ staff count, % seats filled), Attendance last 30d with ▲/▼ trend badge vs prior 30d, Collected last 30d with trend + receipt count, Overdue amount + invoices-past-due count; each tile deep-links to its area.
+  - gap: App's analytics module returns only flat rows: Active students, Active staff, Sections, Fees collected, Fees outstanding. Missing the 30-day attendance %, the period-over-period ▲/▼ trend arrows, the overdue-invoice count, seats-filled %, and tile deep-links.
+  - endpoint: `/api/mobile/v1/admin/module/analytics [GET]`
+- 🟠 **Analytics — Attendance trend chart (14-day daily %)** — ❌ missing · effort M
+  - web: 14-day bar chart of daily present-share with a computed slope caption (rising / falling / steady across the period).
+  - gap: No attendance time-series or chart anywhere in the admin app; the analytics module returns only scalar counts.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/analytics/attendance-trend GET`
+- 🟠 **Analytics — Receivables aging table** — ❌ missing · effort M
+  - web: Overdue fee balances bucketed by age with invoice count, amount, and share bar per bucket (colour-coded by age).
+  - gap: No aging breakdown; app shows only a single fees-outstanding total.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/analytics/aging GET`
+- 🟠 **Analytics — Score distribution histogram + mean/median/pass-rate** — ❌ missing · effort M
+  - web: Histogram across 5 grade bands with mean, median, pass-rate stats and an out-of-range exclusions note.
+  - gap: No academic-performance distribution, mean/median, or pass rate shown in the app.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/analytics/scores GET`
+- 🟠 **Ask — Natural-language question → answer** — ❌ missing · effort L
+  - web: Type a plain-English question (or tap an example chip); Claude interprets it into a permission-scoped report definition, runs it, and returns a results table (first 100 rendered) with an AI/keyword-match badge, a remaining-quota badge, and the duration.
+  - gap: The entire Ask-your-data feature is absent on mobile — no module tile, screen, or endpoint; 'ask' is not even in the mobile module registry.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/ask POST`
+- 🟠 **Dashboard — Students needing attention (at-risk by absence)** — ❌ missing · effort M
+  - web: Table of students with the highest absence counts over the window (name→student profile, class, absences badge); links through to AI insights.
+  - gap: No at-risk / needs-attention list on the admin home or anywhere in the app.
+  - endpoint: `NEEDED: extend /api/mobile/v1/admin/overview or /api/mobile/v1/admin/at-risk GET`
+- 🟠 **Reports — Build & run a custom report** — ❌ missing · effort L
+  - web: Pick a data source (students / staff / invoices / payments / attendance, permission-filtered), toggle columns, add field+operator+value filters, choose sort field + direction, set a row limit; Run returns a results table (first 200 rendered) with duration and a truncation warning at the cap.
+  - gap: No report builder or runner in the app; the reports module only lists previously-saved report names.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/reports/run POST`
+- 🟠 **Reports — Save a report (name + share toggle)** — ❌ missing · effort M
+  - web: Save the current definition with a name and an optional 'share with colleagues' flag.
+  - gap: Cannot create or save report definitions from the app.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/reports POST`
+- 🟠 **Reports — Saved reports list (Load / Delete)** — 👁 read-only · effort M
+  - web: List of own + shared saved reports; Load a definition back into the builder; Delete reports you own.
+  - gap: App lists saved reports (name, description, shared/private) but cannot load/run or delete them — display only.
+  - endpoint: `/api/mobile/v1/admin/module/reports [GET]`
+- 🟡 **AI insights — Risk-level filter** — ❌ missing · effort S
+  - web: FilterSelect to narrow the list to one level (Critical / High / Medium / Low); defaults to medium-and-above.
+  - gap: No risk-level filtering (feature absent).
+  - endpoint: `NEEDED: level query param on /api/mobile/v1/admin/insights/risk GET`
+- 🟡 **AI insights — Scoring methodology explainer** — ❌ missing · effort S
+  - web: Static card explaining the transparent weighted-sum signals (attendance 0–35, academics 0–25, fee arrears 0–20, homework 0–12, conduct 0–8) and the level thresholds.
+  - gap: Methodology explanation not shown in the app.
+  - endpoint: `n/a (static content, ship in-app)`
+- 🟡 **Analytics — Admissions conversion summary** — ❌ missing · effort S
+  - web: Info alert summarising applications this year, number enrolled, rejected, and conversion %.
+  - gap: No conversion-rate summary; the admissions module lists raw applications only.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/analytics/admissions GET (or extend overview)`
+- 🟡 **Analytics — Classes table (enrolment vs capacity + average score)** — ◐ partial · effort S
+  - web: Per-section enrolment/capacity, capacity-used bar, and average score per class.
+  - gap: Classes module shows enrolment/capacity but not the per-class average score the analytics table adds.
+  - endpoint: `/api/mobile/v1/admin/module/classes [GET]`
+- 🟡 **Analytics — Collection rate + balance stats** — ◐ partial · effort S
+  - web: Year collection-rate progress bar (collected of billed) plus median & mean outstanding balance with a mean-vs-median skew note.
+  - gap: App shows raw collected & outstanding amounts but no collection-rate %, no billed total, and no median/mean balance.
+  - endpoint: `/api/mobile/v1/admin/module/analytics [GET]`
+- 🟡 **Analytics — Student body composition** — ❌ missing · effort S
+  - web: Gender distribution bars (count + %) plus tallies of students using transport, in hostel, books on loan, and applications.
+  - gap: Not surfaced; no gender split or transport/hostel/library/admissions tallies in the app's analytics.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/analytics/student-body GET`
+- 🟡 **Analytics — Subjects by average (ranked)** — ❌ missing · effort S
+  - web: Subjects ranked weakest-last with per-subject average, progress bars, and 'too few marks to compare' comparability flags.
+  - gap: No subject performance ranking in the app.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/analytics/subject-ranking GET`
+- 🟡 **Ask — Download answer as CSV** — ❌ missing · effort S
+  - web: Download the answer rows as a CSV file.
+  - gap: No CSV export/share for Ask answers.
+  - endpoint: `NEEDED: csv returned by /api/mobile/v1/admin/ask POST`
+- 🟡 **Ask — Interpretation 'read as' panel** — ❌ missing · effort S
+  - web: Shows how the question was read (source, columns, filters, sort) so a misreading is visible rather than silent.
+  - gap: No interpretation-transparency panel (whole Ask feature absent).
+  - endpoint: `NEEDED: part of /api/mobile/v1/admin/ask POST response`
+- 🟡 **Ask — Recent questions history (last 10)** — ❌ missing · effort S
+  - web: Table of your last 10 questions with row count, model/answered-by, duration, and timestamp.
+  - gap: No question history surfaced in the app.
+  - endpoint: `NEEDED: /api/mobile/v1/admin/ask/history GET`
+- 🟡 **Dashboard — Attendance trend chart (last 10 school days)** — ◐ partial · effort M
+  - web: Bar chart of present-share across the last 10 school days with tone colouring and a 'View details' link.
+  - gap: Admin home shows only today's attendance % (single number); no multi-day trend chart.
+  - endpoint: `/api/mobile/v1/admin/overview [GET]`
+- 🟡 **Dashboard — Fee collection summary card** — ◐ partial · effort S
+  - web: Collected amount, collection-rate progress bar, and a grid of invoice count, overdue count, applications-open, and outstanding total.
+  - gap: Home hero shows fees collected + fees due only; no collection-rate %, no billed total, and no invoice/overdue/applications-open counts (overview returns pendingInvoices but the UI ignores it).
+  - endpoint: `/api/mobile/v1/admin/overview [GET]`
+- 🟡 **Reports — Download results as CSV** — ❌ missing · effort M
+  - web: Download the full result set as a CSV file.
+  - gap: No CSV export/share of report results on mobile.
+  - endpoint: `NEEDED: csv returned by /api/mobile/v1/admin/reports/run POST`
+
+### Teacher · Teacher daily (attendance, classes, timetable, homework author+grade, exam marks)
+
+- 🟠 **Attendance for a chosen/past date (date picker)** — ◐ partial · effort S
+  - web: attendance/page.tsx: <input type=date> + Go; teacher can view and mark/correct attendance for ANY date, not just today.
+  - gap: Mobile hard-codes _date to DateTime.now() with no picker, so only today's attendance can be marked or corrected. Both endpoints already support an arbitrary ISO date — only the UI selector is missing.
+  - endpoint: `teacher/attendance POST (already accepts `date`); teacher/students GET (already accepts `date` and pre-fills)`
+- 🟠 **Auto-check all answers (one-click class-wide auto-grade + flag written answers to review)** — ❌ missing · effort M
+  - web: worksheet-builder.tsx 'Check answers' -> question-actions.ts checkAllAnswers: marks every submission's MCQs, records partial auto-award, and surfaces written answers needing review ('X to check' badges in the register).
+  - gap: No auto-grade on mobile and the per-submission worksheet answers / 'to check' review counts shown in the web register are not returned or displayed.
+  - endpoint: `NEEDED: /api/mobile/v1/teacher/homework/check POST (and worksheet answers + needs-review counts added to submissions GET)`
+- 🟠 **Open a student's submission attachment while grading** — ◐ partial · effort S
+  - web: homework/[id]/page.tsx: each submission row shows 'Open attachment' link (submission.attachmentUrl) alongside typed content.
+  - gap: The submissions endpoint omits attachmentUrl, so a student who handed in a file (not typed text) cannot have their work opened/viewed on mobile — the grade screen just says 'No written answer submitted.'
+  - endpoint: `teacher/homework/submissions GET (NEEDED: add `attachmentUrl` to each item; endpoint currently selects content/marks/feedback only)`
+- 🟠 **Worksheet question builder (add/remove MCQ, short/long text; options, answer key, marks, model answer)** — ❌ missing · effort L
+  - web: homework/[id]/worksheet-builder.tsx + question-actions.ts addQuestion/deleteQuestion: build auto-gradable questions with type, options, correct option, marks, and hidden model answer.
+  - gap: The entire worksheet-authoring surface is absent on mobile; a teacher can set a homework title/instructions but cannot attach any structured questions.
+  - endpoint: `NEEDED: /api/mobile/v1/teacher/homework/questions POST + DELETE`
+- 🟡 **Holiday / weekend warning before marking** — ❌ missing · effort S
+  - web: attendance/page.tsx: Alert banner when the chosen date is a holiday (db.holiday) or weekend, warning that attendance is usually not recorded.
+  - gap: No holiday/weekend indication on the mobile attendance screen.
+  - endpoint: `NEEDED: add `holiday`/`isWeekend` flag to /api/mobile/v1/teacher/students GET (weekend derivable client-side; holiday needs the lookup)`
+- 🟡 **Homework list with to-grade tally + aggregate stats** — ◐ partial · effort S
+  - web: homework/page.tsx: list of assignments (class, due, handed-in progress bar, to-mark badge) PLUS four StatTiles — Assignments/open, Awaiting marking, Not handed in, Subjects.
+  - gap: Mobile lists assignments with per-item to-grade/graded/total but omits the aggregate stat tiles (awaiting-marking total, not-handed-in total, subjects).
+  - endpoint: `teacher/homework/list GET`
+- 🟡 **Homework scope toggle (mine vs whole school)** — ❌ missing · effort S
+  - web: homework/page.tsx: FilterSelect scope lets a teacher switch from their own assignments to every assignment across the school.
+  - gap: Mobile always shows only homework the teacher authored; no whole-school view.
+  - endpoint: `teacher/homework/list GET (NEEDED: add a scope=all param; currently filters authorId only)`
+- 🟡 **Live marks stats + range/pass validation** — ◐ partial · effort M
+  - web: marks-grid.tsx: live Entered/Pending/Absent/Below-pass badges, Average + Highest, inline 0..maxMarks range validation blocking save, and below-pass-mark highlighting.
+  - gap: Mobile marks entry has no running stats, no average/highest, no 0..max range check, and no below-pass highlight — raw number fields only.
+  - endpoint: `teacher/exams/roster GET (data present; computed client-side on web)`
+- 🟡 **Originality / AI plagiarism check (run check; per-student flag, score, note)** — ❌ missing · effort L
+  - web: homework/[id]/originality-panel.tsx + originality-actions.ts checkOriginality: runs peer-similarity + optional AI-generated detection across written submissions, shows per-student flag/score/note sorted worst-first, re-runnable.
+  - gap: No originality/AI-plagiarism screening on mobile (teacher holds ai.insights + homework.manage; the web feature is teacher-available).
+  - endpoint: `NEEDED: /api/mobile/v1/teacher/homework/originality POST (run) + GET (flags/scores/notes)`
+- 🟡 **School-wide day attendance totals (marked / present% / absent tiles)** — ❌ missing · effort S
+  - web: attendance/page.tsx: three StatTiles — Marked today across all classes, Present %, Absent count (guardians can be notified).
+  - gap: Mobile hero only shows marked-present count for the single open class; no school-wide marked/present/absent summary.
+  - endpoint: `NEEDED: /api/mobile/v1/teacher/overview GET (extend) or a day-totals field`
+- 🟡 **Teacher weekly timetable (own schedule)** — ◐ partial · effort M
+  - web: timetable/page.tsx: 'By teacher' view renders the teacher's weekly schedule as a Period x Day grid with subject color key, room, and class per cell.
+  - gap: Mobile shows the teacher's slots only as a flat chronological list via the generic read-only module screen — no weekly grid, no subject color key, no at-a-glance Day x Period layout. (Read-only on both; timetable.manage is admin-only so no action is missing, only the grid presentation.)
+  - endpoint: `teacher/module/timetable GET (returns the teacher's own slots as flat items)`
+- 🟡 **Worksheet file attachment (teacher uploads a PDF/image worksheet)** — ❌ missing · effort M
+  - web: homework/[id]/worksheet.tsx: AttachmentField uploads/replaces a worksheet file (PDF or image, up to 10MB) students can download.
+  - gap: Teacher cannot attach or replace a downloadable worksheet file from the app.
+  - endpoint: `NEEDED: /api/mobile/v1/teacher/homework/worksheet POST (multipart upload)`
+-  **Class roster (student name, roll number, admission no)** — ✅ parity · effort S
+  - web: Roster rows rendered within attendance/marks registers (roll, name, admission no).
+  - endpoint: `teacher/students GET`
+-  **Enter exam marks / mark absent per student + save** — ✅ parity · effort S
+  - web: exams/[examId]/marks/page.tsx + marks-grid.tsx: pick section, enter a mark or tick Absent per student (keyboard column navigation), save (saveMarks).
+  - endpoint: `teacher/exams/marks POST + teacher/exams/roster GET`
+-  **Exams list (pick an exam to enter marks)** — ✅ parity · effort S
+  - web: Exam list surfaces exams with subject/class/term/status; teacher opens one to enter marks.
+  - endpoint: `teacher/exams GET`
+-  **Grade a submission (marks + feedback) with submission register** — ✅ parity · effort S
+  - web: homework/[id]/page.tsx + grade-row.tsx: per-student register with status, submitted time, mark input + feedback input + Save (gradeSubmission).
+  - endpoint: `teacher/homework/submissions GET + teacher/homework/grade POST`
+-  **Mark class attendance (roster, P/A/L/Leave states, mark-all-present, save)** — ✅ parity · effort S
+  - web: attendance/attendance-sheet.tsx: per-student radiogroup with 4 states (PRESENT/ABSENT/LATE/ON_LEAVE), 'Mark all present', live tally badges, save; opens pre-filled from existing records.
+  - endpoint: `teacher/attendance POST (+ teacher/students GET to load roster)`
+-  **My classes list (section, student count, class-teacher badge)** — ✅ parity · effort S
+  - web: Teacher's own sections surfaced first across attendance/homework pickers (teacherSectionIds), tagged '· my class'.
+  - endpoint: `teacher/classes GET`
+-  **Set homework (class, subject, title, instructions, due date, max marks)** — ✅ parity · effort S
+  - web: homework/new-assignment.tsx + actions.ts createAssignment: pick class+subject, title, instructions, due date, optional max marks; opens a submission row per enrolled student.
+  - endpoint: `teacher/homework POST`
+
+### Teacher · Teacher LMS+engagement (courses manage/publish, quizzes manage/publish, report-card generate, AI insights refresh, leave, messages, read-only notices/library/analytics)
+
+- 🟠 **AI insights — dropout-risk student list** — ◐ partial · effort M
+  - web: List of students by dropout risk: name, class/section, score /100, risk-level badge, plain-language explanation, and leading risk factors (label, points/max, detail). Backed by RiskScore. Needs ai.insights.
+  - gap: Mobile reads a different data source (generic AiInsight cards) and does not surface the per-student dropout-risk scores, explanations or factor breakdown the web shows.
+  - endpoint: `/api/mobile/v1/teacher/module/aiinsights GET (reads the generic AiInsight model, NOT dropout RiskScore)`
+- 🟠 **Add course resource** — ❌ missing · effort M
+  - web: 'Add resource' drawer: title (req), type (LINK/PDF/VIDEO/DOCUMENT/IMAGE/OTHER), optional lesson, url (http(s), req). Attaches to course or a lesson. Needs lms.manage.
+  - gap: No resource attach on mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/teacher/courses/resource POST`
+- 🟠 **Add lesson to course** — ❌ missing · effort M
+  - web: 'Add lesson' drawer: title (req), content (markdown), videoUrl, durationMinutes. Auto-sequences. Needs lms.manage (teacher holds it).
+  - gap: No lesson authoring on mobile for anyone; even AdminCoursesScreen tells users to 'add lessons on the web'. Teacher cannot add lessons from the app.
+  - endpoint: `NEEDED: /api/mobile/v1/teacher/courses/lesson POST`
+- 🟠 **Add quiz question** — ❌ missing · effort M
+  - web: 'Add question' drawer: prompt (req), option1-4 (>=2 non-blank, distinct), correct option, points (default 10), explanation. Blanks dropped and key remapped. Needs quiz.manage.
+  - gap: No question authoring on mobile for anyone; AdminQuizzesScreen says 'add questions on the web'. Teacher cannot add questions from the app.
+  - endpoint: `NEEDED: /api/mobile/v1/teacher/quizzes/question POST`
+- 🟠 **Course detail page** — ❌ missing · effort M
+  - web: Per-course page: lessons list (sequence, title, content preview, 'has video', per-lesson resource chips), course-wide resources list, About section, status/class/subject/teacher badges, duration summary. reportcards n/a; needs lms.read.
+  - gap: No course detail screen for teachers at all; the ModuleListScreen course rows are not tappable, so lessons/resources/about are entirely unreachable on mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/teacher/courses/[id] GET`
+- 🟠 **Create course** — ❌ missing · effort M
+  - web: 'New course' drawer form: title (req), summary, description, class (classLevelId), subject, teacher. Creates a DRAFT. Needs lms.manage (teacher holds it).
+  - gap: Teacher app opens the read-only ModuleListScreen with no create flow; AdminCoursesScreen/endpoint are wired only for role==admin in module_registry.dart. The existing create endpoint also omits the Class (classLevelId) field the web form has.
+  - endpoint: `/api/mobile/v1/admin/courses POST (exists, gated on lms.manage so it already accepts a teacher token — just not surfaced; also missing a classLevelId field)`
+- 🟠 **Create quiz** — ❌ missing · effort M
+  - web: 'New quiz' drawer: title (req), description, class (classLevelId), subject, author (teacherId), timeLimitMinutes. Creates a DRAFT. Needs quiz.manage (teacher holds it).
+  - gap: Teacher app opens read-only ModuleListScreen with no create; AdminQuizzesScreen/endpoint wired only for role==admin. Existing create endpoint also lacks class/time-limit fields.
+  - endpoint: `/api/mobile/v1/admin/quizzes POST (exists, gated on quiz.manage so already teacher-capable; surfaced only to admin; form omits classLevelId, timeLimitMinutes, author)`
+- 🟠 **Generate report cards** — ❌ missing · effort M
+  - web: GeneratePanel: pick Term + Class (section), 'Generate report cards' recomputes totals, grades and class rank from recorded marks. Needs reportcards.generate (teacher holds it). (The 'Publish to parents' button is gated on reportcards.publish, which teachers do NOT hold, so it is correctly admin-only and not a teacher gap.)
+  - gap: The generate endpoint already accepts a teacher token, but the generate panel is wired only into the admin screen; teachers get the read-only ModuleListScreen with no way to generate report cards.
+  - endpoint: `/api/mobile/v1/admin/reportcards/generate POST (exists, gated on reportcards.generate so already teacher-capable; surfaced only in AdminReportCardsScreen for role==admin)`
+- 🟠 **Messages: start new conversation (incl. parents)** — ◐ partial · effort M
+  - web: 'New message' lets a teacher (staff) start a thread with staff AND guardians/parents (recipient list shows 'parent of <child> (<adm no>)'). Needs messages.use; staff may reach guardians.
+  - gap: The mobile recipients endpoint returns only staff, so a teacher cannot start a conversation with a parent/guardian from the app, even though the web allows it and messages/send already supports staff→guardian threads.
+  - endpoint: `/api/mobile/v1/messages/recipients GET (returns STAFF ONLY)`
+- 🟠 **My leave balances** — ❌ missing · effort M
+  - web: Per-leave-type balances for the year: available/allocated with progress bars (allocated+carried vs used). Needs leave.read + staff record.
+  - gap: Mobile leave module shows only the request list; the teacher's own leave balances are not shown.
+  - endpoint: `NEEDED: add balances to /api/mobile/v1/teacher/module/leave (or a teacher/leave GET)`
+- 🟠 **Publish / Unpublish / Archive / Restore course** — ❌ missing · effort M
+  - web: CourseStatusControls: Publish (needs >=1 lesson, stamps publishedAt), Unpublish, Archive, Restore. Publish needs lms.publish (teacher holds it), others lms.manage.
+  - gap: Mobile has no course publish/status endpoint or control for any role; teacher cannot publish/unpublish/archive a course from the app despite holding lms.publish.
+  - endpoint: `NEEDED: /api/mobile/v1/teacher/courses/status POST (no course status/publish endpoint exists on mobile at all, even for admin)`
+- 🟠 **Publish / Unpublish / Archive / Restore quiz** — ❌ missing · effort S
+  - web: QuizStatusControls: Publish (needs >=1 question), Unpublish, Archive, Restore. Publish needs quiz.publish (teacher holds it), others quiz.manage.
+  - gap: The quiz publish/status endpoint already accepts a teacher token, but the control is only wired into the admin screen; teachers have no publish/archive control in the app.
+  - endpoint: `/api/mobile/v1/admin/quizzes/status POST (exists, gated on quiz.publish/quiz.manage so already teacher-capable; surfaced only in AdminQuizzesScreen for role==admin)`
+- 🟠 **Quiz detail (questions + score tiles)** — ❌ missing · effort M
+  - web: Per-quiz page: questions list (prompt, up to 4 options with the correct one marked, points, explanation), plus StatTiles (Attempts, Average score %, Total points) and class/subject/time-limit meta. Needs quiz.read.
+  - gap: No quiz detail screen for teachers; ModuleListScreen quiz rows are not tappable, so questions, options, correct answers and score stats are unreachable.
+  - endpoint: `NEEDED: /api/mobile/v1/teacher/quizzes/[id] GET`
+- 🟠 **Quiz leaderboard / attempts** — ❌ missing · effort M
+  - web: Leaderboard table of completed attempts: rank, student (name + admission no), score/total, percent, completed date (top 20). Needs quiz.read.
+  - gap: Teacher cannot see any quiz results/leaderboard/attempt data on mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/teacher/quizzes/[id] GET (include attempts)`
+- 🟠 **Recompute risk scores** — ❌ missing · effort M
+  - web: 'Recompute scores' button runs the risk model across all active students and reports count assessed + elevated. Needs ai.insights (teacher holds it).
+  - gap: No recompute/refresh endpoint or control on mobile; teacher cannot trigger risk scoring from the app.
+  - endpoint: `NEEDED: /api/mobile/v1/teacher/ai/insights/refresh POST`
+- 🟠 **Report-cards class results table + filters + stat tiles** — ◐ partial · effort M
+  - web: Term & Class (section) filters; results table ordered by rank (rank, student, obtained/total marks, %, grade badge, result PASS/FAIL/ABSENT, published/draft state); 4 StatTiles (Cards in term, Passed, Needs attention, Class average). Needs reportcards.read.
+  - gap: Teacher module shows only PUBLISHED cards (student, term, %, grade) with no term/section filter, no rank/marks/result, no draft cards, and no stat tiles.
+  - endpoint: `/api/mobile/v1/teacher/module/reportcards GET (published-only); richer /api/mobile/v1/admin/reportcards GET also accepts reportcards.read but is surfaced only to admin`
+- 🟡 **AI insights scoring-method explainer** — ❌ missing · effort S
+  - web: 'How this score is calculated' card explaining the transparent weighted-sum model (attendance 0-35, academics 0-25, fees 0-20, homework 0-12, conduct 0-8, thresholds). Read-only.
+  - gap: The explainer that lets a teacher justify a score to a parent is absent on mobile.
+  - endpoint: `NEEDED: static content in teacher insights screen`
+- 🟡 **Analytics (read-only)** — ◐ partial · effort M
+  - web: Teacher analytics dashboards/metrics (analytics.read).
+  - gap: Mobile shows only three summary counts (my classes, assignments set, submissions to grade) rather than the web analytics dashboards.
+  - endpoint: `/api/mobile/v1/teacher/module/analytics GET`
+- 🟡 **Courses list + catalogue stat tiles** — ◐ partial · effort S
+  - web: Grid of course cards (title, summary, status badge, class/subject badges, lesson+resource counts, total duration, instructor) plus 4 StatTiles (Published, Drafts, Total lessons, Courses) and a 'New course' button. requireAnyPermission lms.read/lms.manage; teacher has lms.manage.
+  - gap: Teacher is routed to the generic read-only list showing only title/subject/status. No stat tiles, no lesson/resource/duration counts, no class badge, and rows are not tappable to a detail page.
+  - endpoint: `/api/mobile/v1/teacher/module/courses GET`
+- 🟡 **Delete course resource** — ❌ missing · effort S
+  - web: Inline Delete on each course/lesson resource (with confirm). Needs lms.manage.
+  - gap: No resource delete on mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/teacher/courses/resource/[id] DELETE`
+- 🟡 **Delete lesson** — ❌ missing · effort S
+  - web: Inline Delete on each lesson (with confirm); transactionally renumbers remaining lessons. Needs lms.manage.
+  - gap: No lesson delete on mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/teacher/courses/lesson/[id] DELETE`
+- 🟡 **Delete quiz question** — ❌ missing · effort S
+  - web: Inline Delete on each question (with confirm); transactionally renumbers. Needs quiz.manage.
+  - gap: No question delete on mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/teacher/quizzes/question/[id] DELETE`
+- 🟡 **Leave summary stat tiles** — ❌ missing · effort S
+  - web: 4 StatTiles: Pending (+days), Approved, Rejected, Leave types (unpaid count). Read-only.
+  - gap: No leave summary tiles on mobile.
+  - endpoint: `NEEDED: include counts in teacher leave GET`
+- 🟡 **Leave types (policy)** — ❌ missing · effort S
+  - web: Leave types card: name, code, annual quota / unpaid. Read-only reference. Needs leave.read.
+  - gap: Leave-type policy reference is not shown on mobile.
+  - endpoint: `NEEDED: include leave types in teacher leave GET`
+- 🟡 **Messages summary stat tiles** — ◐ partial · effort S
+  - web: 3 StatTiles: Conversations, Unread (total), Messages (total). Read-only.
+  - gap: Mobile shows a conversation count and per-thread unread dots but no total-unread or total-message tiles.
+  - endpoint: `/api/mobile/v1/messages/threads GET`
+- 🟡 **Quizzes list + stat tiles** — ◐ partial · effort S
+  - web: Grid of quiz cards (title, description, status, class/subject badges, question+attempt counts, author) plus 4 StatTiles (Published, Total quizzes, Questions, Attempts) and 'New quiz' button. Needs quiz.read/quiz.manage; teacher has quiz.manage.
+  - gap: Teacher gets the generic read-only list (title/subject/status) with no stat tiles, no question/attempt counts, and rows not tappable to detail.
+  - endpoint: `/api/mobile/v1/teacher/module/quizzes GET`
+- 🟡 **Report card detail (per student)** — ❌ missing · effort M
+  - web: Per-card detail page at /exams/report-cards/[id] (subject-wise marks/grades, totals, rank, result). Needs reportcards.read.
+  - gap: No per-student report-card detail view on mobile for teachers.
+  - endpoint: `NEEDED: /api/mobile/v1/teacher/reportcards/[id] GET`
+- 🟡 **Risk-level filter + risk stat tiles** — ❌ missing · effort S
+  - web: StatTiles (Students scored, Critical, High, Low) that act as drill filters, plus a risk-level FilterSelect (Critical/High/Medium/Low) narrowing the list. Needs ai.insights.
+  - gap: No risk summary tiles or level filtering on mobile.
+  - endpoint: `NEEDED: /api/mobile/v1/teacher/ai/insights GET (with level filter + counts)`
+- 🟡 **Upcoming holidays** — ❌ missing · effort S
+  - web: Upcoming holidays card (next ~6: name, date/date-range). Read-only. Needs leave.read.
+  - gap: Upcoming holidays are not shown on mobile.
+  - endpoint: `NEEDED: include holidays in teacher leave GET`
+-  **Library (read-only)** — ✅ parity · effort S
+  - web: Teacher can browse the catalogue (title, author, category). Read-only; needs library.read.
+  - endpoint: `/api/mobile/v1/teacher/module/library GET`
+-  **Messages: conversation list, thread view, reply** — ✅ parity · effort S
+  - web: List of threads (title, unread badge, preview, time); open a thread to read all messages; send a reply. Needs messages.use.
+  - endpoint: `/api/mobile/v1/messages/threads GET, /messages/thread GET, /messages/send POST`
+-  **My leave requests list** — ✅ parity · effort S
+  - web: Own leave requests (type, dates, days, status, approver). Teacher is own-only here (no approve/decide, and the web page has no apply form either). Needs leave.read.
+  - endpoint: `/api/mobile/v1/teacher/module/leave GET`
+-  **Notices (read-only)** — ✅ parity · effort S
+  - web: Teacher can view published notices (title, body, pinned). Read-only; needs notices.read.
+  - endpoint: `/api/mobile/v1/teacher/module/notices GET`

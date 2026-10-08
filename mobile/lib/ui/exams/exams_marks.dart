@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../state/providers.dart';
 import '../../theme/app_theme.dart';
+import '../admin/admin_exam_setup.dart';
 import '../widgets/form_widgets.dart';
 import '../widgets/widgets.dart';
 
@@ -23,6 +24,8 @@ class ExamsScreen extends ConsumerWidget {
     final async = ref.watch(teacherExamsProvider);
     final items = (async.value?['items'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
     final offline = !async.isLoading && async.value == null;
+    // Admins/principals (exams.manage) get a shortcut to create terms + papers.
+    final canSetup = ref.watch(adminExamSetupProvider).value?['canManage'] == true;
 
     return DetailScaffold(
       title: 'Examinations',
@@ -30,6 +33,18 @@ class ExamsScreen extends ConsumerWidget {
       icon: Icons.assignment_turned_in_rounded,
       onRefresh: () async => ref.invalidate(teacherExamsProvider),
       children: [
+        if (canSetup) ...[
+          AppCard(
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AdminExamSetupScreen())),
+            child: Row(children: const [
+              Icon(Icons.assignment_turned_in_rounded, color: AppColors.primary),
+              SizedBox(width: 12),
+              Expanded(child: Text('Set up exams — terms & papers', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700))),
+              Icon(Icons.chevron_right_rounded, color: AppColors.faint),
+            ]),
+          ),
+          const SizedBox(height: 14),
+        ],
         if (async.isLoading)
           const SizedBox(height: 140, child: Center(child: CircularProgressIndicator()))
         else if (offline)

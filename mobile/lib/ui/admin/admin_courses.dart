@@ -5,6 +5,7 @@ import '../../state/providers.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/form_widgets.dart';
 import '../widgets/widgets.dart';
+import 'admin_course_detail.dart';
 
 ({Color c, Color bg}) _st(String s) => switch (s) {
       'PUBLISHED' => (c: AppColors.good, bg: AppColors.goodSoft),
@@ -44,6 +45,8 @@ class AdminCoursesScreen extends ConsumerWidget {
         else
           for (final c in items) ...[
             AppCard(
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => AdminCourseDetailScreen(courseId: c['id'].toString()))),
               child: Row(children: [
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(c['title']?.toString() ?? '', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
@@ -108,7 +111,7 @@ class _CourseFormState extends ConsumerState<_CourseForm> {
           const SizedBox(height: 24),
           PrimaryButton(label: _saving ? 'Creating…' : 'Create course', icon: Icons.check_rounded, onPressed: _saving ? null : _save),
           const SizedBox(height: 8),
-          const Center(child: Text('Add lessons and resources on the web, then publish.',
+          const Center(child: Text('Then open the course to add lessons and publish.',
               style: TextStyle(fontSize: 12, color: AppColors.faint))),
         ],
       );

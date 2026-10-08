@@ -5,6 +5,7 @@ import '../../state/providers.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/form_widgets.dart';
 import '../widgets/widgets.dart';
+import 'admin_quiz_detail.dart';
 
 ({Color c, Color bg}) _st(String s) => switch (s) {
       'PUBLISHED' => (c: AppColors.good, bg: AppColors.goodSoft),
@@ -51,60 +52,29 @@ class AdminQuizzesScreen extends ConsumerWidget {
   }
 }
 
-class _QuizCard extends ConsumerStatefulWidget {
+class _QuizCard extends ConsumerWidget {
   const _QuizCard({required this.q});
   final Map<String, dynamic> q;
-  @override
-  ConsumerState<_QuizCard> createState() => _QuizCardState();
-}
-
-class _QuizCardState extends ConsumerState<_QuizCard> {
-  bool _busy = false;
-
-  Future<void> _set(String status) async {
-    setState(() => _busy = true);
-    final res = await ref.read(apiProvider).postJson('/api/mobile/v1/admin/quizzes/status', {
-      'quizId': widget.q['id'], 'status': status,
-    });
-    if (!mounted) return;
-    setState(() => _busy = false);
-    final msg = res.body?['message'] ?? res.body?['error'] ?? (res.ok ? 'Done.' : 'Could not update.');
-    showToast(context, msg.toString(), error: !res.ok);
-    if (res.ok) ref.invalidate(adminQuizzesProvider);
-  }
 
   @override
-  Widget build(BuildContext context) {
-    final q = widget.q;
+  Widget build(BuildContext context, WidgetRef ref) {
     final status = (q['status'] as String?) ?? 'DRAFT';
     final st = _st(status);
     final questions = (q['questions'] as num?)?.toInt() ?? 0;
     return AppCard(
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => AdminQuizDetailScreen(quizId: q['id'].toString()))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Expanded(child: Text(q['title']?.toString() ?? '', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700))),
           StatusChip(label: status[0] + status.substring(1).toLowerCase(), color: st.c, bg: st.bg),
         ]),
         const SizedBox(height: 4),
-        Text('${q['subject'] ?? ''} · $questions question(s)', style: const TextStyle(fontSize: 12.5, color: AppColors.muted)),
-        const SizedBox(height: 12),
-        Wrap(spacing: 8, children: [
-          if (status != 'PUBLISHED') _chip('Publish', _busy ? null : () => _set('PUBLISHED')),
-          if (status != 'ARCHIVED') _chip('Archive', _busy ? null : () => _set('ARCHIVED')),
-          if (status != 'DRAFT') _chip('Back to draft', _busy ? null : () => _set('DRAFT')),
-        ]),
+        Text('${q['subject'] ?? ''} · $questions question(s) · tap to edit & publish',
+            style: const TextStyle(fontSize: 12.5, color: AppColors.muted)),
       ]),
     );
   }
-
-  Widget _chip(String label, VoidCallback? onTap) => GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-          decoration: BoxDecoration(color: AppColors.accentSoft, borderRadius: BorderRadius.circular(AppRadius.pill)),
-          child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary, fontSize: 13)),
-        ),
-      );
 }
 
 class _QuizForm extends ConsumerStatefulWidget {
@@ -166,7 +136,7 @@ class _QuizFormState extends ConsumerState<_QuizForm> {
         const SizedBox(height: 24),
         PrimaryButton(label: _saving ? 'Creating…' : 'Create quiz', icon: Icons.check_rounded, onPressed: _saving ? null : _save),
         const SizedBox(height: 8),
-        const Center(child: Text('Add questions on the web, then publish here.',
+        const Center(child: Text('Then open the quiz to add questions and publish.',
             style: TextStyle(fontSize: 12, color: AppColors.faint))),
       ],
     );

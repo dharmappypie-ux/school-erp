@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../state/providers.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/widgets.dart';
+import 'admin_curriculum.dart';
 import 'create_subject.dart';
 
 /// Classes & subjects: list the classes, drill into a roster + subjects, and
@@ -27,6 +28,16 @@ class AdminClassesScreen extends ConsumerWidget {
         icon: const Icon(Icons.add_rounded), label: const Text('Subject'),
       ),
       children: [
+        AppCard(
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AdminCurriculumScreen())),
+          child: Row(children: const [
+            Icon(Icons.menu_book_rounded, color: AppColors.primary),
+            SizedBox(width: 12),
+            Expanded(child: Text('Curriculum editor', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700))),
+            Icon(Icons.chevron_right_rounded, color: AppColors.faint),
+          ]),
+        ),
+        const SizedBox(height: 14),
         if (meta.isLoading)
           const SizedBox(height: 140, child: Center(child: CircularProgressIndicator()))
         else if (meta.value == null)

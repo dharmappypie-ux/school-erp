@@ -129,6 +129,35 @@ final adminUsersProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
 final adminAdmissionsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/admissions'));
 
+/// One admission application's full detail (timeline, documents, enrol sections).
+final adminAdmissionDetailProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, String>((ref, id) {
+  return ref.watch(apiProvider).getJson('/api/mobile/v1/admin/admissions/$id');
+});
+
+/// Curriculum editor data: class levels, subjects, teachers + one class's mappings.
+final adminCurriculumProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, String?>((ref, classLevelId) {
+  return ref.watch(apiProvider).getJson('/api/mobile/v1/admin/curriculum',
+      query: classLevelId != null ? {'classLevelId': classLevelId} : null);
+});
+
+/// One course's authoring detail (lessons, resources, status).
+final adminCourseDetailProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, String>((ref, id) {
+  return ref.watch(apiProvider).getJson('/api/mobile/v1/admin/courses/$id');
+});
+
+/// One quiz's authoring detail (questions with answers, status).
+final adminQuizDetailProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, String>((ref, id) {
+  return ref.watch(apiProvider).getJson('/api/mobile/v1/admin/quizzes/$id');
+});
+
+/// Exam setup pickers: terms, class levels, subjects.
+final adminExamSetupProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/exams/setup'));
+
 /// Report cards, to publish.
 final adminReportCardsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/reportcards'));

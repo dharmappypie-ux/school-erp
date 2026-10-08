@@ -5,6 +5,7 @@ import '../../state/providers.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/form_widgets.dart';
 import '../widgets/widgets.dart';
+import 'admin_admission_detail.dart';
 
 Color _statusColor(String s) => switch (s) {
       'ENROLLED' || 'ACCEPTED' || 'OFFERED' => AppColors.good,
@@ -77,6 +78,8 @@ class _AppCardState extends ConsumerState<_AppCard> {
     final a = widget.a;
     final stages = (a['nextStages'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
     return AppCard(
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => AdminAdmissionDetailScreen(applicationId: a['id'].toString()))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Expanded(child: Text(a['name']?.toString() ?? '', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700))),
