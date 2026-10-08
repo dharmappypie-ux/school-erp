@@ -88,8 +88,8 @@ A section is only ✅ when the app can perform the section's **actions**, not ju
    - ~~Inventory: add item + record movement~~ ✅ DONE
    - ~~Quizzes: create + publish/archive~~ ✅ DONE (questions still added on web)
    - ~~Academic years: create + set current~~ ✅ DONE
-   - **Remaining tail** (lower-frequency config / sensitive / complex — still web-only):
-     - Users management (create/role/reset-password/status) — sensitive (role + last-admin guards); highest-value next.
+   - ~~Users management (create/role/reset-password/status)~~ ✅ DONE (with all web guards)
+   - **Remaining tail** (lower-frequency config / complex — still web-only):
      - Hostel allocate/vacate · Transport routes/stops · Timetable substitute · Courses + lessons.
      - Reports builder (dynamic sources) — complex, low mobile value.
 4. Students edit + promote; Staff edit.
