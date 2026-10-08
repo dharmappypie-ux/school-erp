@@ -18,14 +18,29 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const s = await db.staffMember.findUnique({
     where: { id },
     select: {
-      id: true, firstName: true, lastName: true, email: true, employeeId: true,
+      id: true, firstName: true, lastName: true, email: true, phone: true, employeeId: true,
       staffType: true, employmentStatus: true,
+      department: { select: { name: true } },
+      designation: { select: { name: true } },
     },
   });
   if (!s) return cors(NextResponse.json({ error: "Staff not found in your school." }, { status: 404 }));
+
+  const yearId = session.academicYearId;
+  const [subjectsTaught, classTeacherOf, leaveTotal, leavePending] = await Promise.all([
+    db.classSubject.count({ where: { teacherId: id } }),
+    db.section.count({ where: { classTeacherId: id, ...(yearId ? { academicYearId: yearId } : {}) } }),
+    db.leaveRequest.count({ where: { staffId: id } }),
+    db.leaveRequest.count({ where: { staffId: id, status: "PENDING" } }),
+  ]);
+
   return cors(NextResponse.json({
-    id: s.id, firstName: s.firstName, lastName: s.lastName ?? "", email: s.email ?? "",
+    id: s.id, firstName: s.firstName, lastName: s.lastName ?? "", email: s.email ?? "", phone: s.phone ?? "",
     employeeId: s.employeeId, staffType: s.staffType, employmentStatus: s.employmentStatus,
+    department: s.department?.name ?? null, designation: s.designation?.name ?? null,
+    stats: {
+      subjectsTaught, classTeacherOf, leaveTotal, leavePending,
+    },
   }));
 }
 

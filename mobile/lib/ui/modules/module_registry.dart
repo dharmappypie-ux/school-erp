@@ -8,7 +8,6 @@ import '../screens/fees_screen.dart';
 import '../screens/notices_screen.dart';
 import '../screens/results_screen.dart';
 import '../admin/create_expense.dart';
-import '../admin/create_subject.dart';
 import '../admin/admin_fees.dart';
 import '../admin/admin_library.dart';
 import '../admin/admin_notices.dart';
@@ -17,6 +16,9 @@ import '../admin/admin_inventory.dart';
 import '../admin/admin_quizzes.dart';
 import '../admin/admin_years.dart';
 import '../admin/admin_users.dart';
+import '../admin/admin_students.dart';
+import '../admin/admin_staff.dart';
+import '../admin/admin_classes.dart';
 import '../admin/admin_attendance.dart';
 import '../admin/admin_leave.dart';
 import '../exams/exams_marks.dart';
@@ -133,6 +135,9 @@ void openModule(BuildContext context, UserRole role, ModuleDef m) {
 
 /// Admin modules that open a bespoke management screen (act, not just read).
 final Map<String, Widget Function()> _adminScreens = {
+  'students': () => const AdminStudentsScreen(),
+  'staff': () => const AdminStaffScreen(),
+  'classes': () => const AdminClassesScreen(),
   'attendance': () => const AdminAttendanceScreen(),
   'leave': () => const AdminLeaveScreen(),
   'exams': () => const ExamsScreen(),
@@ -155,7 +160,6 @@ class _Create {
 
 final Map<String, _Create> _adminCreate = {
   'expenses': _Create('Record', () => const CreateExpenseScreen()),
-  'classes': _Create('Add subject', () => const CreateSubjectScreen()),
 };
 
 /// The grouped module grid for a role, as a list of section widgets that can be

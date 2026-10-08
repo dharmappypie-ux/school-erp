@@ -2,36 +2,98 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
+import { toNumber } from "@/lib/format";
 import { cors, requireMobile } from "@/lib/mobile-auth";
 import { scopedDb } from "@/lib/tenant";
 
 export { OPTIONS } from "@/lib/mobile-auth";
 
-/** GET /api/mobile/v1/admin/student/[id] — current details for the edit form. */
+/**
+ * GET /api/mobile/v1/admin/student/[id] — the student's profile, mirroring the
+ * website's detail page: details for the edit form plus the headline stats
+ * (attendance, average score, fees outstanding, library) and recent marks.
+ */
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const guard = await requireMobile(req, ["students.read", "students.update"]);
   if (guard instanceof NextResponse) return guard;
   const session = guard;
   const { id } = await ctx.params;
   const db = scopedDb(session.schoolId);
+  const yearId = session.academicYearId;
 
   const s = await db.student.findUnique({
     where: { id },
     select: {
       id: true, firstName: true, lastName: true, admissionNo: true, status: true,
-      phone: true, email: true,
+      phone: true, email: true, gender: true,
       enrollments: {
         where: { isActive: true }, take: 1,
         select: { section: { select: { name: true, classLevel: { select: { name: true } } } } },
       },
+      guardians: {
+        where: { isFeePayer: true }, take: 1,
+        select: { relationship: true, guardian: { select: { firstName: true, lastName: true, phone: true } } },
+      },
     },
   });
   if (!s) return cors(NextResponse.json({ error: "Student not found in your school." }, { status: 404 }));
+
+  const [attendance, invoiceAgg, marks, onLoan] = await Promise.all([
+    db.attendanceRecord.groupBy({
+      by: ["status"],
+      where: { studentId: id, ...(yearId ? { academicYearId: yearId } : {}) },
+      _count: { _all: true },
+    }),
+    db.invoice.aggregate({
+      where: { studentId: id, ...(yearId ? { academicYearId: yearId } : {}) },
+      _sum: { amountDue: true },
+    }),
+    db.markEntry.findMany({
+      where: { studentId: id },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+      select: {
+        marksObtained: true,
+        subject: { select: { name: true } },
+        exam: { select: { name: true, maxMarks: true } },
+      },
+    }),
+    db.bookIssue.count({ where: { studentId: id, returnedOn: null } }),
+  ]);
+
+  const attTotal = attendance.reduce((n, r) => n + r._count._all, 0);
+  const attPresent = attendance.filter((r) => r.status === "PRESENT" || r.status === "LATE").reduce((n, r) => n + r._count._all, 0);
+  const attPercent = attTotal > 0 ? Math.round((attPresent / attTotal) * 1000) / 10 : null;
+
+  const scored = marks.filter((m) => m.marksObtained != null && toNumber(m.exam.maxMarks) > 0);
+  const avgScore = scored.length > 0
+    ? Math.round((scored.reduce((sum, m) => sum + (toNumber(m.marksObtained) / toNumber(m.exam.maxMarks)) * 100, 0) / scored.length) * 10) / 10
+    : null;
+
   const sec = s.enrollments[0]?.section;
+  const payer = s.guardians[0];
   return cors(NextResponse.json({
     id: s.id, firstName: s.firstName, lastName: s.lastName ?? "", admissionNo: s.admissionNo,
-    status: s.status, phone: s.phone ?? "", email: s.email ?? "",
+    status: s.status, phone: s.phone ?? "", email: s.email ?? "", gender: s.gender,
     className: sec ? `${sec.classLevel.name} · ${sec.name}` : "—",
+    guardian: payer ? {
+      name: `${payer.guardian.firstName} ${payer.guardian.lastName ?? ""}`.trim(),
+      phone: payer.guardian.phone, relationship: payer.relationship,
+    } : null,
+    stats: {
+      attendancePercent: attPercent,
+      attendancePresent: attPresent,
+      attendanceTotal: attTotal,
+      averageScore: avgScore,
+      assessments: scored.length,
+      feesOutstanding: toNumber(invoiceAgg._sum.amountDue ?? 0),
+      booksOnLoan: onLoan,
+    },
+    recentMarks: marks.map((m) => ({
+      subject: m.subject.name,
+      exam: m.exam.name,
+      score: m.marksObtained != null ? `${toNumber(m.marksObtained)}/${toNumber(m.exam.maxMarks)}` : "—",
+    })),
   }));
 }
 

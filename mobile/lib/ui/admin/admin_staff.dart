@@ -5,7 +5,7 @@ import '../../state/providers.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/widgets.dart';
 import 'create_staff.dart';
-import 'edit_staff.dart';
+import 'staff_detail.dart';
 import 'widgets/admin_widgets.dart';
 
 class AdminStaffScreen extends ConsumerWidget {
@@ -42,7 +42,7 @@ class AdminStaffScreen extends ConsumerWidget {
                 padding: const EdgeInsets.only(bottom: 10),
                 child: AppCard(
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => EditStaffScreen(staffId: s['id'] as String))),
+                      builder: (_) => StaffDetailScreen(staffId: s['id'] as String))),
                   child: Row(
                     children: [
                       Container(

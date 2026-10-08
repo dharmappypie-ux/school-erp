@@ -5,7 +5,7 @@ import '../../state/providers.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/widgets.dart';
 import 'create_student.dart';
-import 'edit_student.dart';
+import 'student_detail.dart';
 import 'widgets/admin_widgets.dart';
 
 class AdminStudentsScreen extends ConsumerWidget {
@@ -42,7 +42,7 @@ class AdminStudentsScreen extends ConsumerWidget {
                 padding: const EdgeInsets.only(bottom: 10),
                 child: AppCard(
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => EditStudentScreen(studentId: s['id'] as String))),
+                      builder: (_) => StudentDetailScreen(studentId: s['id'] as String))),
                   child: Row(
                     children: [
                       Container(
