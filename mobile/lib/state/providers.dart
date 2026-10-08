@@ -159,6 +159,34 @@ final timetableSlotsProvider = FutureProvider.autoDispose
 final studentHomeworkProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/parent/homework/list'));
 
+/// The child's fee record (totals, invoices with line items, receipts) — live.
+final parentFeesProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/parent/fees'));
+
+/// Published courses for the child's class, with their progress (live).
+final parentCoursesProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/parent/courses'));
+
+/// One course with its lessons + the child's completion.
+final parentCourseProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, String>((ref, id) {
+  return ref.watch(apiProvider).getJson('/api/mobile/v1/parent/courses/$id');
+});
+
+/// Published quizzes for the child's class, tagged available/completed (live).
+final parentQuizzesProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/parent/quizzes'));
+
+/// One quiz — runnable questions, or the full review once attempted.
+final parentQuizProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, String>((ref, id) {
+  return ref.watch(apiProvider).getJson('/api/mobile/v1/parent/quizzes/$id');
+});
+
+/// The child's personalized learning plan (headline, recs, tips) — live.
+final learningPlanProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/parent/learning-plan'));
+
 /// The teacher's homework with a to-grade tally (live).
 final teacherHomeworkProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/teacher/homework/list'));

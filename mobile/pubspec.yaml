@@ -44,6 +44,8 @@ dependencies:
   google_fonts: ^6.2.1
   intl: ^0.20.3
   sqflite_common_ffi_web: ^1.2.0
+  file_picker: ^13.1.0
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:

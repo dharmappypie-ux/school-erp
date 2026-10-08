@@ -4,6 +4,8 @@ import '../../data/models/models.dart';
 import '../../theme/app_theme.dart';
 import '../screens/attendance_screen.dart';
 import '../screens/courses_screen.dart';
+import '../screens/quizzes_screen.dart';
+import '../screens/learning_plan_screen.dart';
 import '../screens/fees_screen.dart';
 import '../screens/notices_screen.dart';
 import '../screens/results_screen.dart';
@@ -64,6 +66,7 @@ const kModules = <ModuleDef>[
   ModuleDef('timetable', 'Timetable', Icons.calendar_month_rounded, AppColors.gold, 'Academics', _all),
   ModuleDef('exams', 'Examinations', Icons.assignment_turned_in_rounded, AppColors.primary, 'Academics', _staff),
   ModuleDef('results', 'Results', Icons.insights_rounded, AppColors.teal, 'Academics', {UserRole.parent}),
+  ModuleDef('learningplan', 'Learning plan', Icons.auto_graph_rounded, AppColors.primary, 'Academics', {UserRole.parent}),
   ModuleDef('homework', 'Homework', Icons.menu_book_rounded, AppColors.gold, 'Academics', _all),
   ModuleDef('reportcards', 'Report cards', Icons.description_rounded, AppColors.primary, 'Academics', _all),
   ModuleDef('courses', 'Courses', Icons.play_lesson_rounded, AppColors.good, 'Academics', _all),
@@ -112,8 +115,10 @@ void openModule(BuildContext context, UserRole role, ModuleDef m) {
     screen = switch (m.key) {
       'attendance' => const AttendanceScreen(),
       'results' => const ResultsScreen(),
+      'learningplan' => const LearningPlanScreen(),
       'homework' => const StudentHomeworkScreen(),
       'courses' => const CoursesScreen(),
+      'quizzes' => const QuizzesScreen(),
       'fees' => const FeesScreen(pushed: true),
       'notices' => const NoticesScreen(pushed: true),
       _ => ModuleListScreen(role: roleSegment(role), name: m.key, title: m.label, icon: m.icon),

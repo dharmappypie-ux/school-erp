@@ -38,12 +38,15 @@ export async function GET(req: Request) {
       status: true,
       content: true,
       submittedAt: true,
+      attachmentUrl: true,
       marksObtained: true,
       feedback: true,
       homework: {
         select: {
           id: true, title: true, description: true, dueOn: true, maxMarks: true,
+          attachmentUrl: true,
           subject: { select: { name: true } },
+          author: { select: { firstName: true, lastName: true } },
         },
       },
     },
@@ -56,10 +59,15 @@ export async function GET(req: Request) {
       title: r.homework.title,
       description: r.homework.description,
       subject: r.homework.subject.name,
+      teacher: r.homework.author
+        ? `${r.homework.author.firstName} ${r.homework.author.lastName ?? ""}`.trim()
+        : null,
       dueOn: r.homework.dueOn.toISOString(),
       status: r.status,
       content: r.content,
       submittedAt: r.submittedAt?.toISOString() ?? null,
+      attachmentUrl: r.attachmentUrl,
+      worksheetUrl: r.homework.attachmentUrl,
       marksObtained: r.marksObtained != null ? toNumber(r.marksObtained) : null,
       maxMarks: r.homework.maxMarks != null ? toNumber(r.homework.maxMarks) : null,
       feedback: r.feedback,

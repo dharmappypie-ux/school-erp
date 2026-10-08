@@ -2,44 +2,48 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../data/models/models.dart';
 import '../../state/providers.dart';
 import '../../theme/app_theme.dart';
-import '../widgets/sync_pill.dart';
 import '../widgets/widgets.dart';
 
 final _inr = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
-final _day = DateFormat('d MMM');
+final _day = DateFormat('d MMM yyyy');
 
+({Color c, Color bg, String label}) _invStatus(String s, bool overdue) {
+  if (overdue) return (c: AppColors.danger, bg: AppColors.dangerSoft, label: 'overdue');
+  return switch (s) {
+    'PAID' => (c: AppColors.good, bg: AppColors.goodSoft, label: 'paid'),
+    'PARTIALLY_PAID' => (c: AppColors.warn, bg: AppColors.warnSoft, label: 'part paid'),
+    'ISSUED' => (c: AppColors.primary, bg: AppColors.accentSoft, label: 'issued'),
+    _ => (c: AppColors.muted, bg: AppColors.line, label: s.replaceAll('_', ' ').toLowerCase()),
+  };
+}
+
+/// The child's fee record — totals, every invoice with its line items, and the
+/// receipts issued to date. Mobile mirror of /portal/fees.
 class FeesScreen extends ConsumerWidget {
   const FeesScreen({super.key, this.pushed = false});
-
-  /// When pushed (e.g. from the module grid) it wraps itself in a Scaffold so it
-  /// has the Material ancestor the shell normally provides, and the header shows
-  /// a back button instead of the drawer hamburger.
   final bool pushed;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final invoices = ref.watch(invoicesProvider);
-
+    final async = ref.watch(parentFeesProvider);
     final content = RefreshIndicator(
       color: AppColors.ink,
-      onRefresh: () async {
-        await ref.read(syncProvider).sync(manual: true);
-        refreshData(ref);
-      },
+      onRefresh: () async => ref.invalidate(parentFeesProvider),
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(18, 10, 18, 28),
         children: [
-          const AppScreenHeader(title: 'Fees', trailing: SyncPill()),
+          const AppScreenHeader(title: 'Fees'),
           const SizedBox(height: 18),
-          invoices.when(
-            loading: () => const SizedBox(height: 120, child: Center(child: CircularProgressIndicator())),
-            error: (e, _) => AppCard(child: Text('$e')),
-            data: (list) => _body(context, list),
-          ),
+          if (async.isLoading)
+            const SizedBox(height: 120, child: Center(child: CircularProgressIndicator()))
+          else if (async.value == null)
+            const AppCard(child: Text("Couldn't reach the school — pull down to retry.",
+                style: TextStyle(color: AppColors.muted)))
+          else
+            ..._body(context, async.value!),
         ],
       ),
     );
@@ -52,131 +56,216 @@ class FeesScreen extends ConsumerWidget {
     return content;
   }
 
-  Widget _body(BuildContext context, List<FeeInvoice> list) {
-    final due = list.where((i) => i.status != InvoiceStatus.paid).fold<double>(0, (s, i) => s + i.balance);
-    final overdue = list.where((i) => i.status == InvoiceStatus.overdue).length;
+  List<Widget> _body(BuildContext context, Map<String, dynamic> d) {
+    final billed = (d['billed'] as num?)?.toDouble() ?? 0;
+    final paid = (d['paid'] as num?)?.toDouble() ?? 0;
+    final outstanding = (d['outstanding'] as num?)?.toDouble() ?? 0;
+    final invoices = (d['invoices'] as List? ?? const []).cast<Map<String, dynamic>>();
+    final payments = (d['payments'] as List? ?? const []).cast<Map<String, dynamic>>();
+    final overdue = invoices.where((i) => i['overdue'] == true).toList();
+    final progress = billed > 0 ? (paid / billed) : 0.0;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        DarkCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('TOTAL DUE', style: eyebrow(AppColors.onDarkMuted)),
-              const SizedBox(height: 6),
-              Text(_inr.format(due),
-                  style: const TextStyle(
-                      color: AppColors.onDark, fontSize: 36, fontWeight: FontWeight.w800, height: 1)),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  if (overdue > 0)
-                    StatusChip(
-                        label: '$overdue overdue',
-                        color: const Color(0xFFF2B8B8),
-                        bg: Colors.white.withValues(alpha: 0.08),
-                        icon: Icons.schedule_rounded),
-                  const Spacer(),
-                  PrimaryButton(
-                    expand: false,
-                    label: 'Pay all',
-                    icon: Icons.lock_rounded,
-                    onPressed: due > 0 ? () => _pay(context, 'all dues') : null,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 22),
-        const SectionLabel('Invoices'),
-        for (final inv in list)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: AppCard(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(inv.title,
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 4),
-                        Text(
-                          inv.status == InvoiceStatus.paid
-                              ? 'Paid · ${_inr.format(inv.amount)}'
-                              : 'Due ${_day.format(inv.dueDate)} · ${_inr.format(inv.balance)}',
-                          style: const TextStyle(fontSize: 12.5, color: AppColors.muted),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  _statusView(context, inv),
-                ],
-              ),
+    return [
+      DarkCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('OUTSTANDING', style: eyebrow(AppColors.onDarkMuted)),
+            const SizedBox(height: 6),
+            Text(_inr.format(outstanding),
+                style: const TextStyle(
+                    color: AppColors.onDark, fontSize: 36, fontWeight: FontWeight.w800, height: 1)),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(child: _darkStat('Billed', _inr.format(billed))),
+                Expanded(child: _darkStat('Paid', _inr.format(paid))),
+              ],
             ),
-          ),
-        const SizedBox(height: 12),
-        const SectionLabel('Payment methods'),
+            const SizedBox(height: 14),
+            ProgressBar(value: progress, color: Colors.white, height: 7),
+            const SizedBox(height: 6),
+            Text('${(progress * 100).toStringAsFixed(1)}% paid',
+                style: TextStyle(fontSize: 12, color: AppColors.onDarkMuted)),
+          ],
+        ),
+      ),
+      if (overdue.isNotEmpty) ...[
+        const SizedBox(height: 14),
         AppCard(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
-          child: Column(
+          child: Row(
             children: [
-              RowTile(
-                  icon: Icons.account_balance_rounded,
-                  title: 'UPI / Net banking',
-                  subtitle: 'Pay instantly from your bank',
-                  onTap: () => _pay(context, 'UPI')),
-              const Hairline(),
-              RowTile(
-                  icon: Icons.credit_card_rounded,
-                  title: 'Card ending 2187',
-                  subtitle: 'Visa · auto-pay off',
-                  onTap: () => _pay(context, 'card')),
+              const Icon(Icons.warning_amber_rounded, color: AppColors.danger),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '${overdue.length} invoice${overdue.length == 1 ? ' is' : 's are'} past the due date. Please contact the school office to settle.',
+                  style: const TextStyle(color: AppColors.danger, fontSize: 13, height: 1.35),
+                ),
+              ),
             ],
           ),
         ),
       ],
+      const SizedBox(height: 22),
+      const SectionLabel('Invoices'),
+      if (invoices.isEmpty)
+        const AppCard(child: Text('No invoices raised yet.', style: TextStyle(color: AppColors.muted)))
+      else
+        for (final inv in invoices) _InvoiceCard(inv),
+      const SizedBox(height: 16),
+      const SectionLabel('Payment history'),
+      if (payments.isEmpty)
+        const AppCard(child: Text('No payments recorded yet.', style: TextStyle(color: AppColors.muted)))
+      else
+        AppCard(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Column(
+            children: [
+              for (int i = 0; i < payments.length; i++) ...[
+                if (i > 0) const Hairline(),
+                _paymentRow(payments[i]),
+              ],
+            ],
+          ),
+        ),
+      const SizedBox(height: 14),
+      const Text(
+        'Online payment isn’t enabled on this deployment yet. Please pay at the school office, and receipts will appear here.',
+        style: TextStyle(fontSize: 12, color: AppColors.faint, height: 1.4),
+      ),
+    ];
+  }
+
+  Widget _darkStat(String label, String value) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label.toUpperCase(), style: eyebrow(AppColors.onDarkMuted)),
+          const SizedBox(height: 3),
+          Text(value, style: const TextStyle(color: AppColors.onDark, fontSize: 16, fontWeight: FontWeight.w700)),
+        ],
+      );
+
+  Widget _paymentRow(Map<String, dynamic> p) {
+    final paidAt = DateTime.tryParse(p['paidAt']?.toString() ?? '');
+    final mode = (p['mode']?.toString() ?? '').replaceAll('_', ' ').toLowerCase();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 11),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(p['receiptNo']?.toString() ?? '—',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, fontFeatures: [])),
+                const SizedBox(height: 2),
+                Text('${paidAt != null ? _day.format(paidAt) : ''}${mode.isNotEmpty ? ' · $mode' : ''}',
+                    style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+              ],
+            ),
+          ),
+          Text(_inr.format((p['amount'] as num?)?.toDouble() ?? 0),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.good)),
+        ],
+      ),
     );
   }
+}
 
-  Widget _statusView(BuildContext context, FeeInvoice inv) {
-    switch (inv.status) {
-      case InvoiceStatus.paid:
-        return const StatusChip(label: 'Paid', color: AppColors.good, bg: AppColors.goodSoft, icon: Icons.check_rounded);
-      case InvoiceStatus.overdue:
-        return PrimaryButton(expand: false, label: 'Pay', onPressed: () => _pay(context, inv.title));
-      case InvoiceStatus.due:
-        return PrimaryButton(expand: false, label: 'Pay', onPressed: () => _pay(context, inv.title));
-    }
-  }
+class _InvoiceCard extends StatelessWidget {
+  const _InvoiceCard(this.inv);
+  final Map<String, dynamic> inv;
 
-  void _pay(BuildContext context, String what) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        margin: const EdgeInsets.all(14),
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-            color: AppColors.surface, borderRadius: BorderRadius.circular(AppRadius.card)),
+  @override
+  Widget build(BuildContext context) {
+    final status = inv['status']?.toString() ?? '';
+    final overdue = inv['overdue'] == true;
+    final st = _invStatus(status, overdue);
+    final lines = (inv['lines'] as List? ?? const []).cast<Map<String, dynamic>>();
+    final due = DateTime.tryParse(inv['dueDate']?.toString() ?? '');
+    final issued = DateTime.tryParse(inv['issueDate']?.toString() ?? '');
+    final amountDue = (inv['amountDue'] as num?)?.toDouble() ?? 0;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: AppCard(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.lock_rounded, color: AppColors.accent),
-            const SizedBox(height: 10),
-            Text('Pay $what',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 6),
-            const Text(
-                'Fee payments open the school’s secure checkout. Coming soon in this preview build.',
-                style: TextStyle(fontSize: 13, color: AppColors.muted)),
-            const SizedBox(height: 18),
-            PrimaryButton(label: 'Got it', onPressed: () => Navigator.pop(context)),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(inv['period']?.toString() ?? 'Fee invoice',
+                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(inv['invoiceNo']?.toString() ?? '',
+                              style: const TextStyle(fontSize: 11, color: AppColors.faint)),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${issued != null ? 'Issued ${_day.format(issued)}' : ''}'
+                        '${due != null ? ' · due ${_day.format(due)}' : ''}',
+                        style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(_inr.format((inv['total'] as num?)?.toDouble() ?? 0),
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 4),
+                    StatusChip(label: st.label, color: st.c, bg: st.bg),
+                  ],
+                ),
+              ],
+            ),
+            if (lines.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Hairline(),
+              const SizedBox(height: 8),
+              for (final l in lines)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 5),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(l['description']?.toString() ?? '',
+                            style: const TextStyle(fontSize: 12.5, color: AppColors.muted)),
+                      ),
+                      Text(_inr.format((l['amount'] as num?)?.toDouble() ?? 0),
+                          style: const TextStyle(fontSize: 12.5, color: AppColors.ink)),
+                    ],
+                  ),
+                ),
+              if (amountDue > 0) ...[
+                const SizedBox(height: 4),
+                const Hairline(),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text('Balance due',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                    ),
+                    Text(_inr.format(amountDue),
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.danger)),
+                  ],
+                ),
+              ],
+            ],
           ],
         ),
       ),

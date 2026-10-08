@@ -31,6 +31,17 @@ class ApiClient {
 
   void setToken(String? token) => _token = token;
 
+  /// The backend origin, so screens can build absolute URLs for server-relative
+  /// asset paths (e.g. an attachment's `/uploads/...`).
+  String get baseUrl => _dio.options.baseUrl;
+
+  /// Absolute URL for a server path that may be relative (e.g. `/uploads/x.pdf`).
+  String absoluteUrl(String path) {
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    final base = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    return path.startsWith('/') ? '$base$path' : '$base/$path';
+  }
+
   Options get _auth => Options(
         headers: _token == null ? null : {'Authorization': 'Bearer $_token'},
         validateStatus: (s) => s != null && s < 500,
