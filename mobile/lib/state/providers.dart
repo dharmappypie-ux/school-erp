@@ -158,6 +158,12 @@ final adminQuizDetailProvider = FutureProvider.autoDispose
 final adminExamSetupProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/exams/setup'));
 
+/// One student's attendance history (rate, monthly, session log).
+final studentAttendanceProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, String>((ref, id) {
+  return ref.watch(apiProvider).getJson('/api/mobile/v1/admin/student/$id/attendance');
+});
+
 /// Report cards, to publish.
 final adminReportCardsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/reportcards'));

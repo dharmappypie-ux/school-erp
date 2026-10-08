@@ -9,7 +9,17 @@ import { scopedDb } from "@/lib/tenant";
 
 export { OPTIONS } from "@/lib/mobile-auth";
 
-/** GET /api/mobile/v1/admin/students?q= — active students, newest first. */
+const STATUSES = ["ACTIVE", "ALUMNI", "TRANSFERRED", "DROPPED", "SUSPENDED", "ON_LEAVE"] as const;
+type StudentStatus = (typeof STATUSES)[number];
+const PAGE_SIZE = 30;
+
+/**
+ * GET /api/mobile/v1/admin/students?q=&status=&page=
+ *
+ * Students, newest first, searchable by name / admission no / email / phone,
+ * filterable by lifecycle status (default ACTIVE; "ALL" for every status) and
+ * paginated so the whole roster is reachable — not just the first batch.
+ */
 export async function GET(req: Request) {
   const guard = await requireMobile(req, ["students.read", "students.create"]);
   if (guard instanceof NextResponse) return guard;
@@ -17,43 +27,61 @@ export async function GET(req: Request) {
 
   const db = scopedDb(session.schoolId);
   const yearId = session.academicYearId;
-  const q = new URL(req.url).searchParams.get("q")?.trim();
+  const url = new URL(req.url);
+  const q = url.searchParams.get("q")?.trim();
+  const statusParam = (url.searchParams.get("status") ?? "ACTIVE").toUpperCase();
+  const page = Math.max(1, Number(url.searchParams.get("page") ?? "1") || 1);
 
-  const rows = await db.student.findMany({
-    where: {
-      status: "ACTIVE",
-      ...(q
-        ? {
-            OR: [
-              { firstName: { contains: q, mode: "insensitive" } },
-              { lastName: { contains: q, mode: "insensitive" } },
-              { admissionNo: { contains: q, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-    },
-    orderBy: { admissionNo: "desc" },
-    take: 100,
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      admissionNo: true,
-      enrollments: {
-        where: yearId ? { academicYearId: yearId } : undefined,
-        take: 1,
-        select: { section: { select: { name: true, classLevel: { select: { name: true } } } } },
+  const statusFilter = statusParam === "ALL"
+    ? {}
+    : STATUSES.includes(statusParam as StudentStatus) ? { status: statusParam as StudentStatus } : { status: "ACTIVE" as StudentStatus };
+
+  const where = {
+    ...statusFilter,
+    ...(q
+      ? {
+          OR: [
+            { firstName: { contains: q, mode: "insensitive" as const } },
+            { lastName: { contains: q, mode: "insensitive" as const } },
+            { admissionNo: { contains: q, mode: "insensitive" as const } },
+            { email: { contains: q, mode: "insensitive" as const } },
+            { phone: { contains: q, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+  };
+
+  const [total, rows] = await Promise.all([
+    db.student.count({ where }),
+    db.student.findMany({
+      where,
+      orderBy: { admissionNo: "desc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      select: {
+        id: true, firstName: true, lastName: true, admissionNo: true, status: true,
+        enrollments: {
+          where: yearId ? { academicYearId: yearId } : undefined,
+          take: 1,
+          select: { section: { select: { name: true, classLevel: { select: { name: true } } } } },
+        },
       },
-    },
-  });
+    }),
+  ]);
 
   return cors(NextResponse.json({
+    total,
+    page,
+    pageSize: PAGE_SIZE,
+    hasMore: page * PAGE_SIZE < total,
+    statuses: STATUSES,
     students: rows.map((s) => {
       const sec = s.enrollments[0]?.section;
       return {
         id: s.id,
         name: `${s.firstName} ${s.lastName ?? ""}`.trim(),
         admissionNo: s.admissionNo,
+        status: s.status,
         className: sec ? `${sec.classLevel.name} · ${sec.name}` : "—",
       };
     }),
