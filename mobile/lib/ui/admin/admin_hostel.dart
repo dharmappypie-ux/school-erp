@@ -15,6 +15,8 @@ class AdminHostelScreen extends ConsumerWidget {
     final async = ref.watch(adminHostelProvider);
     final rooms = (async.value?['rooms'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
     final allocations = (async.value?['allocations'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+    final blocks = (async.value?['blocks'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+    final wardens = (async.value?['wardens'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
     final canManage = async.value?['canManage'] == true;
 
     return DetailScaffold(
@@ -38,6 +40,23 @@ class AdminHostelScreen extends ConsumerWidget {
             Expanded(child: Text("Couldn't reach the school — pull down to retry.", style: TextStyle(color: AppColors.muted))),
           ]))
         else ...[
+          if (canManage) ...[
+            Row(children: [
+              Expanded(child: PrimaryButton(
+                label: 'New block', icon: Icons.apartment_rounded,
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _BlockForm(wardens: wardens))),
+              )),
+              const SizedBox(width: 12),
+              Expanded(child: PrimaryButton(
+                label: 'New room', icon: Icons.meeting_room_rounded,
+                onPressed: blocks.isEmpty ? null : () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _RoomForm(blocks: blocks))),
+              )),
+            ]),
+            if (blocks.isEmpty)
+              const Padding(padding: EdgeInsets.only(top: 8),
+                  child: Text('Create a block first, then add rooms to it.', style: TextStyle(fontSize: 12, color: AppColors.faint))),
+            const SizedBox(height: 18),
+          ],
           SectionLabel('Allocations (${allocations.length})'),
           if (allocations.isEmpty)
             const AppCard(child: Text('Nobody allocated yet.', style: TextStyle(color: AppColors.muted)))
@@ -191,4 +210,119 @@ class _AllocateFormState extends ConsumerState<_AllocateForm> {
     _bed.dispose();
     super.dispose();
   }
+}
+
+class _BlockForm extends ConsumerStatefulWidget {
+  const _BlockForm({required this.wardens});
+  final List<Map<String, dynamic>> wardens;
+  @override
+  ConsumerState<_BlockForm> createState() => _BlockFormState();
+}
+
+class _BlockFormState extends ConsumerState<_BlockForm> {
+  final _name = TextEditingController();
+  final _phone = TextEditingController();
+  String _type = 'BOYS';
+  Map<String, dynamic>? _warden;
+  bool _saving = false;
+
+  Future<void> _save() async {
+    if (_name.text.trim().length < 2) { showToast(context, 'Name the block.', error: true); return; }
+    setState(() => _saving = true);
+    final res = await ref.read(apiProvider).postJson('/api/mobile/v1/admin/hostel/block', {
+      'name': _name.text.trim(),
+      'type': _type,
+      if (_phone.text.trim().isNotEmpty) 'contactPhone': _phone.text.trim(),
+      if (_warden != null) 'wardenId': _warden!['id'],
+    });
+    if (!mounted) return;
+    setState(() => _saving = false);
+    showToast(context, res.body?['message']?.toString() ?? res.body?['error']?.toString() ?? 'Done.', error: !res.ok);
+    if (res.ok) { ref.invalidate(adminHostelProvider); Navigator.of(context).maybePop(); }
+  }
+
+  @override
+  Widget build(BuildContext context) => DetailScaffold(
+        title: 'New block', subtitle: 'Hostel block', icon: Icons.apartment_rounded,
+        children: [
+          AppTextField(controller: _name, label: 'Block name', required: true),
+          const SizedBox(height: 14),
+          AppDropdown<String>(label: 'Type', value: _type, items: const ['BOYS', 'GIRLS', 'MIXED'],
+              itemLabel: (t) => t[0] + t.substring(1).toLowerCase(), onChanged: (t) => setState(() => _type = t ?? 'BOYS')),
+          const SizedBox(height: 14),
+          AppDropdown<Map<String, dynamic>>(label: 'Warden (optional)', value: _warden, items: widget.wardens,
+              itemLabel: (w) => w['name']?.toString() ?? '', onChanged: (w) => setState(() => _warden = w)),
+          const SizedBox(height: 14),
+          AppTextField(controller: _phone, label: 'Contact phone', hint: 'Optional', keyboard: TextInputType.phone),
+          const SizedBox(height: 22),
+          PrimaryButton(label: _saving ? 'Creating…' : 'Create block', icon: Icons.check_rounded, onPressed: _saving ? null : _save),
+        ],
+      );
+
+  @override
+  void dispose() { _name.dispose(); _phone.dispose(); super.dispose(); }
+}
+
+class _RoomForm extends ConsumerStatefulWidget {
+  const _RoomForm({required this.blocks});
+  final List<Map<String, dynamic>> blocks;
+  @override
+  ConsumerState<_RoomForm> createState() => _RoomFormState();
+}
+
+class _RoomFormState extends ConsumerState<_RoomForm> {
+  final _number = TextEditingController();
+  final _floor = TextEditingController();
+  final _cap = TextEditingController(text: '2');
+  final _fee = TextEditingController();
+  Map<String, dynamic>? _block;
+  String _roomType = 'DOUBLE';
+  bool _saving = false;
+
+  Future<void> _save() async {
+    if (_block == null || _number.text.trim().isEmpty) { showToast(context, 'Choose a block and room number.', error: true); return; }
+    setState(() => _saving = true);
+    final res = await ref.read(apiProvider).postJson('/api/mobile/v1/admin/hostel/room', {
+      'hostelId': _block!['id'],
+      'roomNumber': _number.text.trim(),
+      if (_floor.text.trim().isNotEmpty) 'floor': _floor.text.trim(),
+      'capacity': int.tryParse(_cap.text.trim()) ?? 2,
+      'roomType': _roomType,
+      if (_fee.text.trim().isNotEmpty) 'monthlyFee': num.tryParse(_fee.text.trim()) ?? 0,
+    });
+    if (!mounted) return;
+    setState(() => _saving = false);
+    showToast(context, res.body?['message']?.toString() ?? res.body?['error']?.toString() ?? 'Done.', error: !res.ok);
+    if (res.ok) { ref.invalidate(adminHostelProvider); Navigator.of(context).maybePop(); }
+  }
+
+  @override
+  Widget build(BuildContext context) => DetailScaffold(
+        title: 'New room', subtitle: 'Add to a block', icon: Icons.meeting_room_rounded,
+        children: [
+          AppDropdown<Map<String, dynamic>>(label: 'Block', required: true, value: _block, items: widget.blocks,
+              itemLabel: (b) => '${b['name']} (${(b['type'] ?? '').toString().toLowerCase()})', onChanged: (b) => setState(() => _block = b)),
+          const SizedBox(height: 14),
+          Row(children: [
+            Expanded(child: AppTextField(controller: _number, label: 'Room number', required: true)),
+            const SizedBox(width: 12),
+            Expanded(child: AppTextField(controller: _floor, label: 'Floor', hint: 'Optional')),
+          ]),
+          const SizedBox(height: 14),
+          Row(children: [
+            Expanded(child: AppDropdown<String>(label: 'Type', value: _roomType,
+                items: const ['SINGLE', 'DOUBLE', 'TRIPLE', 'DORMITORY'], itemLabel: (t) => t[0] + t.substring(1).toLowerCase(),
+                onChanged: (t) => setState(() => _roomType = t ?? 'DOUBLE'))),
+            const SizedBox(width: 12),
+            Expanded(child: AppTextField(controller: _cap, label: 'Capacity', keyboard: TextInputType.number)),
+          ]),
+          const SizedBox(height: 14),
+          AppTextField(controller: _fee, label: 'Monthly fee', hint: 'Optional', keyboard: TextInputType.number),
+          const SizedBox(height: 22),
+          PrimaryButton(label: _saving ? 'Adding…' : 'Add room', icon: Icons.check_rounded, onPressed: _saving ? null : _save),
+        ],
+      );
+
+  @override
+  void dispose() { _number.dispose(); _floor.dispose(); _cap.dispose(); _fee.dispose(); super.dispose(); }
 }

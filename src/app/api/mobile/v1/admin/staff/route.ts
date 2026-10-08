@@ -17,6 +17,11 @@ export async function GET(req: Request) {
   const db = scopedDb(session.schoolId);
   const q = new URL(req.url).searchParams.get("q")?.trim();
 
+  const [departments, designations] = await Promise.all([
+    db.department.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    db.designation.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+  ]);
+
   const rows = await db.staffMember.findMany({
     where: {
       employmentStatus: "ACTIVE",
@@ -44,6 +49,8 @@ export async function GET(req: Request) {
   });
 
   return cors(NextResponse.json({
+    departments,
+    designations,
     staff: rows.map((s) => ({
       id: s.id,
       name: `${s.firstName} ${s.lastName ?? ""}`.trim(),
@@ -64,6 +71,16 @@ const CreateSchema = z.object({
   roleKey: z.string().trim().min(1, "Choose a system role"),
   qualification: z.string().trim().optional(),
   joiningDate: z.string().trim().optional(),
+  dateOfBirth: z.string().trim().optional(),
+  bloodGroup: z.string().trim().optional(),
+  specialisation: z.string().trim().optional(),
+  experience: z.coerce.number().int().min(0).max(60).optional(),
+  addressLine1: z.string().trim().optional(),
+  city: z.string().trim().optional(),
+  state: z.string().trim().optional(),
+  postalCode: z.string().trim().optional(),
+  departmentId: z.string().trim().optional(),
+  designationId: z.string().trim().optional(),
 });
 
 /**
@@ -146,6 +163,16 @@ export async function POST(req: Request) {
           employmentStatus: "ACTIVE",
           joiningDate: input.joiningDate ? new Date(input.joiningDate) : new Date(),
           qualification: input.qualification,
+          dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null,
+          bloodGroup: input.bloodGroup || null,
+          specialisation: input.specialisation || null,
+          experience: input.experience ?? null,
+          addressLine1: input.addressLine1 || null,
+          city: input.city || null,
+          state: input.state || null,
+          postalCode: input.postalCode || null,
+          departmentId: input.departmentId || null,
+          designationId: input.designationId || null,
         },
       });
       return staff.id;

@@ -16,6 +16,8 @@ class _CreateSubjectScreenState extends ConsumerState<CreateSubjectScreen> {
   final _name = TextEditingController();
   final _code = TextEditingController();
   bool _elective = false;
+  bool _coScholastic = false;
+  bool _graded = true;
   bool _saving = false;
 
   Future<void> _submit() async {
@@ -28,6 +30,8 @@ class _CreateSubjectScreenState extends ConsumerState<CreateSubjectScreen> {
       'name': _name.text.trim(),
       'code': _code.text.trim(),
       'isElective': _elective,
+      'isCoScholastic': _coScholastic,
+      'isGraded': _graded,
     });
     if (!mounted) return;
     setState(() => _saving = false);
@@ -52,12 +56,28 @@ class _CreateSubjectScreenState extends ConsumerState<CreateSubjectScreen> {
         AppTextField(controller: _code, label: 'Code', hint: 'e.g. MATH', required: true),
         const SizedBox(height: 10),
         AppCard(
-          child: ToggleRow(
-            title: 'Elective',
-            subtitle: 'Students opt in rather than it being compulsory',
-            value: _elective,
-            onChanged: (v) => setState(() => _elective = v),
-          ),
+          child: Column(children: [
+            ToggleRow(
+              title: 'Elective',
+              subtitle: 'Students opt in rather than it being compulsory',
+              value: _elective,
+              onChanged: (v) => setState(() => _elective = v),
+            ),
+            const Hairline(),
+            ToggleRow(
+              title: 'Co-scholastic',
+              subtitle: 'An activity subject (art, sport) rather than academic',
+              value: _coScholastic,
+              onChanged: (v) => setState(() => _coScholastic = v),
+            ),
+            const Hairline(),
+            ToggleRow(
+              title: 'Graded',
+              subtitle: 'Appears with marks/grades on the report card',
+              value: _graded,
+              onChanged: (v) => setState(() => _graded = v),
+            ),
+          ]),
         ),
         const SizedBox(height: 26),
         PrimaryButton(

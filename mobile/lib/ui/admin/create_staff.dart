@@ -18,8 +18,17 @@ class _CreateStaffScreenState extends ConsumerState<CreateStaffScreen> {
   final _email = TextEditingController();
   final _phone = TextEditingController();
   final _qualification = TextEditingController();
+  final _dob = TextEditingController();
+  final _blood = TextEditingController();
+  final _spec = TextEditingController();
+  final _exp = TextEditingController();
+  final _addr = TextEditingController();
+  final _city = TextEditingController();
+  final _joining = TextEditingController();
   String _staffType = 'TEACHING';
   String? _roleKey;
+  Map<String, dynamic>? _dept;
+  Map<String, dynamic>? _desig;
   bool _saving = false;
 
   Future<void> _submit() async {
@@ -28,14 +37,24 @@ class _CreateStaffScreenState extends ConsumerState<CreateStaffScreen> {
       return;
     }
     setState(() => _saving = true);
+    String t(TextEditingController c) => c.text.trim();
     final res = await ref.read(apiProvider).postJson('/api/mobile/v1/admin/staff', {
-      'firstName': _first.text.trim(),
-      'lastName': _last.text.trim(),
-      'email': _email.text.trim(),
-      'phone': _phone.text.trim(),
+      'firstName': t(_first),
+      'lastName': t(_last),
+      'email': t(_email),
+      'phone': t(_phone),
       'staffType': _staffType,
       'roleKey': _roleKey,
-      if (_qualification.text.trim().isNotEmpty) 'qualification': _qualification.text.trim(),
+      if (t(_qualification).isNotEmpty) 'qualification': t(_qualification),
+      if (t(_dob).isNotEmpty) 'dateOfBirth': t(_dob),
+      if (t(_joining).isNotEmpty) 'joiningDate': t(_joining),
+      if (t(_blood).isNotEmpty) 'bloodGroup': t(_blood),
+      if (t(_spec).isNotEmpty) 'specialisation': t(_spec),
+      if (t(_exp).isNotEmpty) 'experience': int.tryParse(t(_exp)) ?? 0,
+      if (t(_addr).isNotEmpty) 'addressLine1': t(_addr),
+      if (t(_city).isNotEmpty) 'city': t(_city),
+      if (_dept != null) 'departmentId': _dept!['id'],
+      if (_desig != null) 'designationId': _desig!['id'],
     });
     if (!mounted) return;
     setState(() => _saving = false);
@@ -51,6 +70,9 @@ class _CreateStaffScreenState extends ConsumerState<CreateStaffScreen> {
   @override
   Widget build(BuildContext context) {
     final meta = ref.watch(adminMetaProvider);
+    final staffData = ref.watch(adminStaffProvider);
+    final departments = (staffData.value?['departments'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+    final designations = (staffData.value?['designations'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
     final roles = (meta.value?['roles'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
     final staffTypes = (meta.value?['staffTypes'] as List?)?.cast<String>() ??
         const ['TEACHING', 'NON_TEACHING', 'ADMINISTRATIVE', 'SUPPORT', 'MANAGEMENT'];
@@ -119,8 +141,39 @@ class _CreateStaffScreenState extends ConsumerState<CreateStaffScreen> {
               (roles.firstWhere((r) => r['key'] == k, orElse: () => {})['name'] ?? k).toString(),
           onChanged: (v) => setState(() => _roleKey = v),
         ),
-        const SizedBox(height: 16),
+        if (departments.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          AppDropdown<Map<String, dynamic>>(label: 'Department (optional)', value: _dept, items: departments,
+              itemLabel: (d) => d['name']?.toString() ?? '', onChanged: (d) => setState(() => _dept = d)),
+        ],
+        if (designations.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          AppDropdown<Map<String, dynamic>>(label: 'Designation (optional)', value: _desig, items: designations,
+              itemLabel: (d) => d['name']?.toString() ?? '', onChanged: (d) => setState(() => _desig = d)),
+        ],
+        const SizedBox(height: 22),
+        const SectionLabel('Profile'),
         AppTextField(controller: _qualification, label: 'Qualification', hint: 'Optional'),
+        const SizedBox(height: 16),
+        Row(children: [
+          Expanded(child: AppTextField(controller: _spec, label: 'Specialisation', hint: 'Optional')),
+          const SizedBox(width: 12),
+          SizedBox(width: 110, child: AppTextField(controller: _exp, label: 'Experience (yrs)', keyboard: TextInputType.number)),
+        ]),
+        const SizedBox(height: 16),
+        Row(children: [
+          Expanded(child: AppTextField(controller: _dob, label: 'Date of birth', hint: 'YYYY-MM-DD')),
+          const SizedBox(width: 12),
+          Expanded(child: AppTextField(controller: _blood, label: 'Blood group')),
+        ]),
+        const SizedBox(height: 16),
+        AppTextField(controller: _joining, label: 'Joining date', hint: 'YYYY-MM-DD (today if blank)'),
+        const SizedBox(height: 16),
+        Row(children: [
+          Expanded(child: AppTextField(controller: _addr, label: 'Address', hint: 'Optional')),
+          const SizedBox(width: 12),
+          Expanded(child: AppTextField(controller: _city, label: 'City')),
+        ]),
         const SizedBox(height: 26),
         PrimaryButton(
           label: _saving ? 'Adding…' : 'Add staff member',
@@ -138,11 +191,9 @@ class _CreateStaffScreenState extends ConsumerState<CreateStaffScreen> {
 
   @override
   void dispose() {
-    _first.dispose();
-    _last.dispose();
-    _email.dispose();
-    _phone.dispose();
-    _qualification.dispose();
+    for (final c in [_first, _last, _email, _phone, _qualification, _dob, _blood, _spec, _exp, _addr, _city, _joining]) {
+      c.dispose();
+    }
     super.dispose();
   }
 }

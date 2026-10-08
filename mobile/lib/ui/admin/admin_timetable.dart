@@ -41,6 +41,10 @@ class _AdminTimetableScreenState extends ConsumerState<AdminTimetableScreen> {
         if (_sectionId != null) ref.invalidate(timetableSlotsProvider(_sectionId!));
       },
       children: [
+        _GenerateCard(onDone: () {
+          if (_sectionId != null) ref.invalidate(timetableSlotsProvider(_sectionId!));
+        }),
+        const SizedBox(height: 18),
         const SectionLabel('Class'),
         AppDropdown<String>(
           label: 'Class section',
@@ -185,4 +189,48 @@ class _SubstituteFormState extends ConsumerState<_SubstituteForm> {
     _reason.dispose();
     super.dispose();
   }
+}
+
+/// Generate the whole-school weekly timetable from subject→class assignments.
+class _GenerateCard extends ConsumerStatefulWidget {
+  const _GenerateCard({required this.onDone});
+  final VoidCallback onDone;
+  @override
+  ConsumerState<_GenerateCard> createState() => _GenerateCardState();
+}
+
+class _GenerateCardState extends ConsumerState<_GenerateCard> {
+  bool _busy = false;
+
+  Future<void> _generate() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Generate timetable?'),
+        content: const Text('This builds the weekly grid for every class from the subject assignments and replaces the current timetable. Continue?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Generate')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    setState(() => _busy = true);
+    final res = await ref.read(apiProvider).postJson('/api/mobile/v1/admin/timetable/generate', {'workingDays': 6});
+    if (!mounted) return;
+    setState(() => _busy = false);
+    showToast(context, res.body?['message']?.toString() ?? res.body?['error']?.toString() ?? 'Done.', error: !res.ok);
+    if (res.ok) widget.onDone();
+  }
+
+  @override
+  Widget build(BuildContext context) => AppCard(
+        child: Row(children: [
+          const Icon(Icons.auto_awesome_rounded, color: AppColors.primary),
+          const SizedBox(width: 12),
+          const Expanded(child: Text('Generate the weekly timetable for every class',
+              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600))),
+          TextButton(onPressed: _busy ? null : _generate, child: Text(_busy ? 'Working…' : 'Generate')),
+        ]),
+      );
 }

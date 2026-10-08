@@ -14,6 +14,7 @@ class AdminTransportScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(adminTransportProvider);
     final items = (async.value?['items'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+    final vehicles = (async.value?['vehicles'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
     final canManage = async.value?['canManage'] == true;
 
     return DetailScaffold(
@@ -29,6 +30,22 @@ class AdminTransportScreen extends ConsumerWidget {
             )
           : null,
       children: [
+        if (canManage) ...[
+          Row(children: [
+            Expanded(child: PrimaryButton(
+              label: 'New vehicle', icon: Icons.directions_bus_rounded,
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const _VehicleForm())),
+            )),
+            const SizedBox(width: 12),
+            Expanded(child: PrimaryButton(
+              label: 'New route', icon: Icons.alt_route_rounded,
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _RouteForm(vehicles: vehicles))),
+            )),
+          ]),
+          const SizedBox(height: 10),
+          Text('${vehicles.length} vehicles on fleet', style: const TextStyle(fontSize: 12, color: AppColors.faint)),
+          const SizedBox(height: 16),
+        ],
         if (async.isLoading)
           const SizedBox(height: 140, child: Center(child: CircularProgressIndicator()))
         else if (async.value == null)
@@ -37,7 +54,7 @@ class AdminTransportScreen extends ConsumerWidget {
             Expanded(child: Text("Couldn't reach the school — pull down to retry.", style: TextStyle(color: AppColors.muted))),
           ]))
         else if (items.isEmpty)
-          const AppCard(child: Text('No routes yet. Create routes on the web.', style: TextStyle(color: AppColors.muted)))
+          const AppCard(child: Text('No routes yet. Tap New route to create one.', style: TextStyle(color: AppColors.muted)))
         else
           for (final r in items) ...[
             AppCard(
@@ -132,4 +149,111 @@ class _StopFormState extends ConsumerState<_StopForm> {
     _name.dispose(); _pickup.dispose();
     super.dispose();
   }
+}
+
+class _VehicleForm extends ConsumerStatefulWidget {
+  const _VehicleForm();
+  @override
+  ConsumerState<_VehicleForm> createState() => _VehicleFormState();
+}
+
+class _VehicleFormState extends ConsumerState<_VehicleForm> {
+  final _reg = TextEditingController();
+  final _cap = TextEditingController(text: '40');
+  final _driver = TextEditingController();
+  final _phone = TextEditingController();
+  String _type = 'BUS';
+  bool _saving = false;
+
+  Future<void> _save() async {
+    if (_reg.text.trim().length < 4) { showToast(context, 'Enter the registration number.', error: true); return; }
+    setState(() => _saving = true);
+    final res = await ref.read(apiProvider).postJson('/api/mobile/v1/admin/transport/vehicle', {
+      'registrationNo': _reg.text.trim(),
+      'vehicleType': _type,
+      'capacity': int.tryParse(_cap.text.trim()) ?? 40,
+      if (_driver.text.trim().isNotEmpty) 'driverName': _driver.text.trim(),
+      if (_phone.text.trim().isNotEmpty) 'driverPhone': _phone.text.trim(),
+    });
+    if (!mounted) return;
+    setState(() => _saving = false);
+    showToast(context, res.body?['message']?.toString() ?? res.body?['error']?.toString() ?? 'Done.', error: !res.ok);
+    if (res.ok) { ref.invalidate(adminTransportProvider); Navigator.of(context).maybePop(); }
+  }
+
+  @override
+  Widget build(BuildContext context) => DetailScaffold(
+        title: 'New vehicle', subtitle: 'Add to the fleet', icon: Icons.directions_bus_rounded,
+        children: [
+          AppTextField(controller: _reg, label: 'Registration number', required: true),
+          const SizedBox(height: 14),
+          Row(children: [
+            Expanded(child: AppDropdown<String>(label: 'Type', value: _type,
+                items: const ['BUS', 'VAN', 'CAR', 'TEMPO'], itemLabel: (t) => t[0] + t.substring(1).toLowerCase(),
+                onChanged: (t) => setState(() => _type = t ?? 'BUS'))),
+            const SizedBox(width: 12),
+            Expanded(child: AppTextField(controller: _cap, label: 'Capacity', keyboard: TextInputType.number)),
+          ]),
+          const SizedBox(height: 14),
+          AppTextField(controller: _driver, label: 'Driver name', hint: 'Optional'),
+          const SizedBox(height: 14),
+          AppTextField(controller: _phone, label: 'Driver phone', hint: 'Optional', keyboard: TextInputType.phone),
+          const SizedBox(height: 22),
+          PrimaryButton(label: _saving ? 'Adding…' : 'Add vehicle', icon: Icons.check_rounded, onPressed: _saving ? null : _save),
+        ],
+      );
+
+  @override
+  void dispose() { _reg.dispose(); _cap.dispose(); _driver.dispose(); _phone.dispose(); super.dispose(); }
+}
+
+class _RouteForm extends ConsumerStatefulWidget {
+  const _RouteForm({required this.vehicles});
+  final List<Map<String, dynamic>> vehicles;
+  @override
+  ConsumerState<_RouteForm> createState() => _RouteFormState();
+}
+
+class _RouteFormState extends ConsumerState<_RouteForm> {
+  final _name = TextEditingController();
+  final _start = TextEditingController();
+  final _end = TextEditingController();
+  Map<String, dynamic>? _vehicle;
+  bool _saving = false;
+
+  Future<void> _save() async {
+    if (_name.text.trim().length < 2) { showToast(context, 'Name the route.', error: true); return; }
+    setState(() => _saving = true);
+    final res = await ref.read(apiProvider).postJson('/api/mobile/v1/admin/transport/route-create', {
+      'name': _name.text.trim(),
+      if (_vehicle != null) 'vehicleId': _vehicle!['id'],
+      if (_start.text.trim().isNotEmpty) 'startPoint': _start.text.trim(),
+      if (_end.text.trim().isNotEmpty) 'endPoint': _end.text.trim(),
+    });
+    if (!mounted) return;
+    setState(() => _saving = false);
+    showToast(context, res.body?['message']?.toString() ?? res.body?['error']?.toString() ?? 'Done.', error: !res.ok);
+    if (res.ok) { ref.invalidate(adminTransportProvider); Navigator.of(context).maybePop(); }
+  }
+
+  @override
+  Widget build(BuildContext context) => DetailScaffold(
+        title: 'New route', subtitle: 'Create a transport route', icon: Icons.alt_route_rounded,
+        children: [
+          AppTextField(controller: _name, label: 'Route name', required: true),
+          const SizedBox(height: 14),
+          AppDropdown<Map<String, dynamic>>(label: 'Vehicle (optional)', value: _vehicle, items: widget.vehicles,
+              itemLabel: (v) => '${v['registrationNo']} · ${v['capacity']} seats',
+              onChanged: (v) => setState(() => _vehicle = v)),
+          const SizedBox(height: 14),
+          AppTextField(controller: _start, label: 'Start point', hint: 'Optional'),
+          const SizedBox(height: 14),
+          AppTextField(controller: _end, label: 'End point', hint: 'Optional'),
+          const SizedBox(height: 22),
+          PrimaryButton(label: _saving ? 'Creating…' : 'Create route', icon: Icons.check_rounded, onPressed: _saving ? null : _save),
+        ],
+      );
+
+  @override
+  void dispose() { _name.dispose(); _start.dispose(); _end.dispose(); super.dispose(); }
 }

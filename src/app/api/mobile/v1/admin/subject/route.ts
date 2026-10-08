@@ -11,6 +11,8 @@ const Schema = z.object({
   name: z.string().trim().min(1, "Give the subject a name").max(120),
   code: z.string().trim().min(1, "Give the subject a code").max(24),
   isElective: z.boolean().optional(),
+  isCoScholastic: z.boolean().optional(),
+  isGraded: z.boolean().optional(),
 });
 
 /** POST /api/mobile/v1/admin/subject — create a subject. */
@@ -38,6 +40,8 @@ export async function POST(req: Request) {
         name: parsed.data.name,
         code,
         isElective: parsed.data.isElective ?? false,
+        isCoScholastic: parsed.data.isCoScholastic ?? false,
+        isGraded: parsed.data.isGraded ?? true,
       },
       select: { id: true, name: true },
     });

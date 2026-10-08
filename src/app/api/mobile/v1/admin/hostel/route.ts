@@ -12,7 +12,7 @@ export async function GET(req: Request) {
   const session = guard;
 
   const db = scopedDb(session.schoolId);
-  const [rooms, allocations] = await Promise.all([
+  const [rooms, allocations, blocks, wardens] = await Promise.all([
     db.hostelRoom.findMany({
       where: { hostel: { schoolId: session.schoolId } },
       orderBy: { roomNumber: "asc" },
@@ -33,10 +33,22 @@ export async function GET(req: Request) {
         room: { select: { roomNumber: true, hostel: { select: { name: true } } } },
       },
     }),
+    db.hostel.findMany({
+      where: { schoolId: session.schoolId },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, type: true },
+    }),
+    db.staffMember.findMany({
+      where: { employmentStatus: "ACTIVE", deletedAt: null },
+      orderBy: { firstName: "asc" },
+      select: { id: true, firstName: true, lastName: true },
+    }),
   ]);
 
   return cors(NextResponse.json({
     canManage: guard.permissions.includes("*") || guard.permissions.includes("hostel.manage") || guard.permissions.includes("hostel.*"),
+    blocks: blocks.map((b) => ({ id: b.id, name: b.name, type: b.type })),
+    wardens: wardens.map((w) => ({ id: w.id, name: `${w.firstName} ${w.lastName ?? ""}`.trim() })),
     rooms: rooms.map((r) => ({
       id: r.id,
       label: `${r.hostel.name} · ${r.roomNumber}`,
