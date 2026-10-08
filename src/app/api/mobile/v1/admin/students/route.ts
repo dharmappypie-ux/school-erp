@@ -134,7 +134,27 @@ export async function POST(req: Request) {
     orderBy: { admissionNo: "desc" },
     select: { admissionNo: true },
   });
-  const admissionNo = nextAdmissionNumber(prefix, latest?.admissionNo ?? null);
+
+  // Find a free slot: the next admission number whose derived login emails and
+  // admission number are all unused. A student deleted earlier can leave an
+  // orphaned login behind, so stepping over those keeps create working.
+  const providedGuardianEmail = input.guardianEmail && input.guardianEmail !== "" ? input.guardianEmail : null;
+  let candidate = nextAdmissionNumber(prefix, latest?.admissionNo ?? null);
+  let admissionNo = candidate;
+  let studentEmail = `${candidate.toLowerCase()}@${school.slug}.local`;
+  let guardianEmail = providedGuardianEmail ?? `parent.${candidate.toLowerCase()}@${school.slug}.local`;
+  for (let i = 0; i < 100; i += 1) {
+    const emails = [studentEmail, ...(providedGuardianEmail ? [] : [guardianEmail])];
+    const [userClash, studentClash] = await Promise.all([
+      db.user.findFirst({ where: { email: { in: emails } }, select: { id: true } }),
+      db.student.findFirst({ where: { admissionNo }, select: { id: true } }),
+    ]);
+    if (!userClash && !studentClash) break;
+    candidate = nextAdmissionNumber(prefix, candidate);
+    admissionNo = candidate;
+    studentEmail = `${candidate.toLowerCase()}@${school.slug}.local`;
+    guardianEmail = providedGuardianEmail ?? `parent.${candidate.toLowerCase()}@${school.slug}.local`;
+  }
 
   const [studentRole, parentRole] = await Promise.all([
     db.role.findUnique({
@@ -149,11 +169,6 @@ export async function POST(req: Request) {
 
   const temporaryPassword = `${admissionNo}@${new Date().getFullYear()}`;
   const passwordHash = await hashPassword(temporaryPassword);
-  const studentEmail = `${admissionNo.toLowerCase()}@${school.slug}.local`;
-  const guardianEmail =
-    input.guardianEmail && input.guardianEmail !== ""
-      ? input.guardianEmail
-      : `parent.${admissionNo.toLowerCase()}@${school.slug}.local`;
   const rollNumber = input.rollNumber || String(section._count.enrollments + 1);
   const [gFirst, ...gRest] = input.guardianName.trim().split(" ");
 
