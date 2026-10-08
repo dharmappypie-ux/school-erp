@@ -1,6 +1,24 @@
 import type { ScopedDb } from "@/lib/tenant";
 
 /**
+ * Whether the caller may act on a given section. Admins (wildcard permission)
+ * reach any class; a teacher only reaches the sections they are class teacher of
+ * or teach a subject in. Use this to scope the teacher attendance/marks/homework
+ * routes so one teacher can't touch another class's register.
+ */
+export async function teacherCanAccessSection(
+  db: ScopedDb,
+  staffId: string | null,
+  permissions: readonly string[],
+  sectionId: string,
+  yearId: string | null,
+): Promise<boolean> {
+  if (permissions.includes("*")) return true;
+  const owned = await teacherSectionIds(db, staffId, yearId);
+  return owned.includes(sectionId);
+}
+
+/**
  * The section ids a teacher is responsible for: ones they are class teacher of,
  * plus ones they teach a subject in (class-level-wide assignments expanded to
  * the current year's sections). Mirrors the logic in teacher/classes, and is

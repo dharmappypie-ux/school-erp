@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { cors, requireMobile } from "@/lib/mobile-auth";
+import { teacherCanAccessSection } from "@/lib/teacher-sections";
 import { scopedDb } from "@/lib/tenant";
 
 export { OPTIONS } from "@/lib/mobile-auth";
@@ -27,6 +28,10 @@ export async function GET(req: Request) {
 
   const db = scopedDb(session.schoolId);
   const yearId = session.academicYearId;
+
+  if (!(await teacherCanAccessSection(db, session.staffId, session.permissions, sectionId, yearId))) {
+    return cors(NextResponse.json({ error: "That class is not one of yours." }, { status: 403 }));
+  }
 
   const enrollments = await db.enrollment.findMany({
     where: { sectionId, isActive: true, ...(yearId ? { academicYearId: yearId } : {}) },

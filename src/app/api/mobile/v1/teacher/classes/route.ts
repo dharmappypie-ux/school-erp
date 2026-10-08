@@ -68,15 +68,16 @@ export async function GET(req: Request) {
     subjects = [...subjMap.values()];
   }
 
+  // Admins (wildcard) may browse any class; a teacher only ever sees the
+  // sections they are class teacher of or teach a subject in — never the whole
+  // school. A teacher with no assignments gets an empty list.
+  const isAdmin = session.permissions.includes("*");
   let scoped = sectionIds.size > 0;
-
-  // Fallback: show every current section + subjects so the tools work even when
-  // the account has no explicit assignments.
   const sectionWhere = scoped
     ? { id: { in: [...sectionIds] } }
-    : yearId
-      ? { academicYearId: yearId }
-      : {};
+    : isAdmin
+      ? (yearId ? { academicYearId: yearId } : {})
+      : { id: { in: [] as string[] } };
 
   const sections = await db.section.findMany({
     where: sectionWhere,
@@ -90,7 +91,7 @@ export async function GET(req: Request) {
     },
   });
 
-  if (subjects.length === 0) {
+  if (subjects.length === 0 && isAdmin) {
     const subs = await db.subject.findMany({
       orderBy: { name: "asc" },
       take: 100,
