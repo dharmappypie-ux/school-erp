@@ -96,8 +96,8 @@ A section is only ✅ when the app can perform the section's **actions**, not ju
    - ~~Transport (routes + add stop)~~ ✅ DONE
    - ~~Courses (create; lessons on web)~~ ✅ DONE
    - **Rich detail pages** (Student/Staff/Class) matching the website ✅ DONE
+   - ~~Timetable substitute~~ ✅ DONE (pick class → tap slot → date + substitute)
    - **Remaining (view-only on mobile, or web-only):**
-     - Timetable substitute — the period-grid scheduling is complex; timetable shows read-only.
      - Roles & permissions, Analytics, AI insights, Reports builder — inherently read-only / heavy; shown as data views.
      - Exam report-card *generation* and payroll *run* stay on web (heavy computation); mobile publishes/marks-paid.
 4. Students edit + promote; Staff edit.
