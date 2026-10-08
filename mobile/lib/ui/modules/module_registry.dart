@@ -13,6 +13,9 @@ import '../admin/admin_fees.dart';
 import '../admin/admin_library.dart';
 import '../admin/admin_notices.dart';
 import '../admin/admin_broadcast.dart';
+import '../admin/admin_inventory.dart';
+import '../admin/admin_quizzes.dart';
+import '../admin/admin_years.dart';
 import '../admin/admin_attendance.dart';
 import '../admin/admin_leave.dart';
 import '../exams/exams_marks.dart';
@@ -76,6 +79,7 @@ const kModules = <ModuleDef>[
   // Administration
   ModuleDef('users', 'Users', Icons.manage_accounts_rounded, AppColors.primary, 'Administration', _admin),
   ModuleDef('roles', 'Roles & permissions', Icons.shield_rounded, AppColors.teal, 'Administration', _admin),
+  ModuleDef('years', 'Academic years', Icons.event_note_rounded, AppColors.gold, 'Administration', _admin),
 ];
 
 const kSectionOrder = [
@@ -135,6 +139,9 @@ final Map<String, Widget Function()> _adminScreens = {
   'library': () => const AdminLibraryScreen(),
   'notices': () => const AdminNoticesScreen(),
   'broadcasts': () => const BroadcastScreen(),
+  'inventory': () => const AdminInventoryScreen(),
+  'quizzes': () => const AdminQuizzesScreen(),
+  'years': () => const AdminYearsScreen(),
 };
 
 /// Admin modules that have an inline create flow, keyed by module key.

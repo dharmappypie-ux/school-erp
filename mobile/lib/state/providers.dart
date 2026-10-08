@@ -109,6 +109,18 @@ final messageThreadProvider = FutureProvider.autoDispose
 final messageRecipientsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/messages/recipients'));
 
+/// Inventory stock items.
+final inventoryItemsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/inventory/items'));
+
+/// Quizzes with status + question count.
+final adminQuizzesProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/quizzes'));
+
+/// Academic years (current first).
+final adminYearsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/years'));
+
 /// The signed-in child's homework with submission state (live).
 final studentHomeworkProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/parent/homework/list'));
