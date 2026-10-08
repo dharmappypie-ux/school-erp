@@ -58,16 +58,20 @@ class ClassDetailScreen extends ConsumerWidget {
       children: [
         Row(
           children: [
-            Expanded(
-              child: _ActionButton(
-                icon: Icons.fact_check_rounded,
-                label: 'Take attendance',
-                color: AppColors.teal,
-                onTap: () => _open(context,
-                    TakeAttendanceScreen(sectionId: sectionId, sectionName: sectionName)),
+            // Only the class teacher may take attendance for a class; a subject
+            // teacher sees the roster and can set homework, but not attendance.
+            if (isClassTeacher) ...[
+              Expanded(
+                child: _ActionButton(
+                  icon: Icons.fact_check_rounded,
+                  label: 'Take attendance',
+                  color: AppColors.teal,
+                  onTap: () => _open(context,
+                      TakeAttendanceScreen(sectionId: sectionId, sectionName: sectionName)),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
+              const SizedBox(width: 12),
+            ],
             Expanded(
               child: _ActionButton(
                 icon: Icons.assignment_add,

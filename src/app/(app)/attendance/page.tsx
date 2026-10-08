@@ -15,7 +15,7 @@ import {
 import { requireAuth } from "@/lib/auth";
 import { formatDate, formatPercent } from "@/lib/format";
 import { hasPermission } from "@/lib/permissions";
-import { teacherSectionIds } from "@/lib/teacher-scope";
+import { classTeacherSectionIds } from "@/lib/teacher-scope";
 import { scopedDb } from "@/lib/tenant";
 
 export const metadata = { title: "Attendance" };
@@ -55,25 +55,47 @@ export default async function AttendancePage({
       })
     : [];
 
-  // A teacher's own classes come first, so they are not hunting for their
-  // section in a school-wide list. Non-teachers see the plain ordering.
-  const mySectionIds = await teacherSectionIds(db, session.staffId, yearId);
-  const sections =
-    mySectionIds.size > 0
-      ? [...allSections].sort((a, b) => {
-          const aMine = mySectionIds.has(a.id) ? 0 : 1;
-          const bMine = mySectionIds.has(b.id) ? 0 : 1;
-          return aMine - bMine;
-        })
-      : allSections;
+  // Attendance authority: supervisors (admins/principals with attendance.manage,
+  // or the * wildcard) may view and mark EVERY class. A class teacher sees and
+  // marks ONLY the class(es) they are class teacher of — a subject teacher who
+  // merely teaches a lesson in a class gets no attendance access to it.
+  const canMarkAny = hasPermission(session.permissions, "attendance.manage");
+  const canMarkBase = hasPermission(session.permissions, "attendance.mark");
+  const myClassSectionIds = await classTeacherSectionIds(db, session.staffId, yearId);
+
+  const sections = canMarkAny
+    ? [...allSections].sort((a, b) => {
+        // Supervisors see the whole school, with their own class(es) first.
+        const aMine = myClassSectionIds.has(a.id) ? 0 : 1;
+        const bMine = myClassSectionIds.has(b.id) ? 0 : 1;
+        return aMine - bMine;
+      })
+    : allSections.filter((section) => myClassSectionIds.has(section.id));
 
   const sectionId =
     typeof params.section === "string" && params.section
       ? params.section
       : (sections[0]?.id ?? "");
 
-  const canMark = hasPermission(session.permissions, "attendance.mark");
+  // Can mark the SELECTED section specifically.
+  const canMark =
+    canMarkAny || (canMarkBase && myClassSectionIds.has(sectionId));
   const canManageDevices = hasPermission(session.permissions, "school.settings");
+
+  // A non-supervisor who is not a class teacher of anything has no register to take.
+  if (!canMarkAny && sections.length === 0) {
+    return (
+      <>
+        <PageHeader title="Attendance" description="Daily class register" />
+        <Card>
+          <EmptyState
+            title="No class assigned to you"
+            description="Attendance is taken by the class teacher. You are not set as the class teacher of any class, so there is no register for you to take here."
+          />
+        </Card>
+      </>
+    );
+  }
 
   const [dayTotals, enrollments, existing, holiday] = await Promise.all([
     db.attendanceRecord.groupBy({
@@ -192,7 +214,7 @@ export default async function AttendancePage({
                 options={sections.map((section) => ({
                   value: section.id,
                   label: `${section.classLevel.name} ${section.name}${
-                    mySectionIds.has(section.id) ? " · my class" : ""
+                    myClassSectionIds.has(section.id) ? " · my class" : ""
                   }`,
                 }))}
               />

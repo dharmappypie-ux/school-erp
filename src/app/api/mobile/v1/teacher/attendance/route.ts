@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
 import { cors, requireMobile } from "@/lib/mobile-auth";
-import { teacherCanAccessSection } from "@/lib/teacher-sections";
+import { canMarkAttendanceForSection } from "@/lib/teacher-sections";
 import { scopedDb } from "@/lib/tenant";
 
 export { OPTIONS } from "@/lib/mobile-auth";
@@ -54,8 +54,11 @@ export async function POST(req: Request) {
   if (!section) {
     return cors(NextResponse.json({ error: "That section is not in your school." }, { status: 404 }));
   }
-  if (!(await teacherCanAccessSection(db, session.staffId, session.permissions, sectionId, yearId))) {
-    return cors(NextResponse.json({ error: "That class is not one of yours." }, { status: 403 }));
+  if (!(await canMarkAttendanceForSection(db, session.staffId, session.permissions, sectionId, yearId))) {
+    return cors(NextResponse.json(
+      { error: "Only the class teacher (or an admin) can mark this class's attendance." },
+      { status: 403 },
+    ));
   }
 
   const enrolled = await db.enrollment.findMany({

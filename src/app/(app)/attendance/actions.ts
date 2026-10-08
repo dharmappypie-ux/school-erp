@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { requirePermission } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
+import { canMarkAttendanceForSection } from "@/lib/teacher-scope";
 import { scopedDb } from "@/lib/tenant";
 
 const MarkSchema = z.object({
@@ -53,6 +54,15 @@ export async function saveAttendance(
   });
   if (!section) {
     return { ok: false, message: "That section does not belong to your school." };
+  }
+
+  // Only the class teacher (or a supervisor with attendance.manage) may mark a
+  // class's register — a subject teacher cannot take another class's attendance.
+  if (!(await canMarkAttendanceForSection(db, session.staffId, session.permissions, sectionId, yearId))) {
+    return {
+      ok: false,
+      message: "You can only mark attendance for the class you are class teacher of.",
+    };
   }
 
   // Only accept students actually enrolled in this section — a tampered payload

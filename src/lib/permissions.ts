@@ -59,6 +59,9 @@ export const PERMISSIONS = {
   // Attendance
   "attendance.read": "View attendance",
   "attendance.mark": "Mark and edit attendance",
+  // Mark attendance for ANY class, not just one's own. Without this, a teacher
+  // with attendance.mark can only mark the class(es) they are class teacher of.
+  "attendance.manage": "Mark attendance for any class",
   "attendance.report": "View attendance analytics",
 
   // Fees & accounting
@@ -293,6 +296,8 @@ export const ROLE_PRESETS: RolePreset[] = [
       "admissions.read",
       "admissions.manage",
       "attendance.read",
+      "attendance.mark",
+      "attendance.manage",
       "attendance.report",
       "fees.read",
       "fees.report",
