@@ -89,9 +89,17 @@ A section is only ✅ when the app can perform the section's **actions**, not ju
    - ~~Quizzes: create + publish/archive~~ ✅ DONE (questions still added on web)
    - ~~Academic years: create + set current~~ ✅ DONE
    - ~~Users management (create/role/reset-password/status)~~ ✅ DONE (with all web guards)
-   - **Remaining tail** (lower-frequency config / complex — still web-only):
-     - Hostel allocate/vacate · Transport routes/stops · Timetable substitute · Courses + lessons.
-     - Reports builder (dynamic sources) — complex, low mobile value.
+   - ~~Admissions (move through pipeline)~~ ✅ DONE
+   - ~~Report cards (publish/unpublish)~~ ✅ DONE
+   - ~~Payroll (mark paid)~~ ✅ DONE
+   - ~~Hostel (allocate/vacate)~~ ✅ DONE
+   - ~~Transport (routes + add stop)~~ ✅ DONE
+   - ~~Courses (create; lessons on web)~~ ✅ DONE
+   - **Rich detail pages** (Student/Staff/Class) matching the website ✅ DONE
+   - **Remaining (view-only on mobile, or web-only):**
+     - Timetable substitute — the period-grid scheduling is complex; timetable shows read-only.
+     - Roles & permissions, Analytics, AI insights, Reports builder — inherently read-only / heavy; shown as data views.
+     - Exam report-card *generation* and payroll *run* stay on web (heavy computation); mobile publishes/marks-paid.
 4. Students edit + promote; Staff edit.
 5. Fees generate invoices + refund.
 6. Library issue/return.
