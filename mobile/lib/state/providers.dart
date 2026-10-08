@@ -97,6 +97,18 @@ final libraryIssuedProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
 final adminNoticesProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/notices'));
 
+/// Messaging (all roles).
+final messageThreadsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/messages/threads'));
+
+final messageThreadProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, String>((ref, threadId) {
+  return ref.watch(apiProvider).getJson('/api/mobile/v1/messages/thread', query: {'threadId': threadId});
+});
+
+final messageRecipientsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/messages/recipients'));
+
 /// The signed-in child's homework with submission state (live).
 final studentHomeworkProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/parent/homework/list'));

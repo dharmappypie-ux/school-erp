@@ -12,9 +12,11 @@ import '../admin/create_subject.dart';
 import '../admin/admin_fees.dart';
 import '../admin/admin_library.dart';
 import '../admin/admin_notices.dart';
+import '../admin/admin_broadcast.dart';
 import '../admin/admin_attendance.dart';
 import '../admin/admin_leave.dart';
 import '../exams/exams_marks.dart';
+import '../messages/messages_screen.dart';
 import '../homework/student_homework.dart';
 import '../homework/teacher_grading.dart';
 import '../widgets/widgets.dart';
@@ -90,7 +92,9 @@ String roleSegment(UserRole r) => switch (r) {
 /// otherwise the generic data-backed list.
 void openModule(BuildContext context, UserRole role, ModuleDef m) {
   Widget screen;
-  if (role == UserRole.parent) {
+  if (m.key == 'messages') {
+    screen = const MessagesScreen();
+  } else if (role == UserRole.parent) {
     screen = switch (m.key) {
       'attendance' => const AttendanceScreen(),
       'results' => const ResultsScreen(),
@@ -130,6 +134,7 @@ final Map<String, Widget Function()> _adminScreens = {
   'fees': () => const AdminFeesScreen(),
   'library': () => const AdminLibraryScreen(),
   'notices': () => const AdminNoticesScreen(),
+  'broadcasts': () => const BroadcastScreen(),
 };
 
 /// Admin modules that have an inline create flow, keyed by module key.
