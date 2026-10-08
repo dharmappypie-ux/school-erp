@@ -125,6 +125,30 @@ final adminYearsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
 final adminUsersProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/users'));
 
+/// Admissions applications (with their next stages).
+final adminAdmissionsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/admissions'));
+
+/// Report cards, to publish.
+final adminReportCardsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/reportcards'));
+
+/// Payslips, to mark paid.
+final adminPayrollProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/payroll'));
+
+/// Hostel rooms + current allocations.
+final adminHostelProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/hostel'));
+
+/// Transport routes + stops.
+final adminTransportProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/transport'));
+
+/// Courses with lesson counts.
+final adminCoursesProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/courses'));
+
 /// The signed-in child's homework with submission state (live).
 final studentHomeworkProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/parent/homework/list'));

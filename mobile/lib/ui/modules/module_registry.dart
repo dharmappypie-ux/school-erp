@@ -19,6 +19,12 @@ import '../admin/admin_users.dart';
 import '../admin/admin_students.dart';
 import '../admin/admin_staff.dart';
 import '../admin/admin_classes.dart';
+import '../admin/admin_admissions.dart';
+import '../admin/admin_reportcards.dart';
+import '../admin/admin_payroll.dart';
+import '../admin/admin_hostel.dart';
+import '../admin/admin_transport.dart';
+import '../admin/admin_courses.dart';
 import '../admin/admin_attendance.dart';
 import '../admin/admin_leave.dart';
 import '../exams/exams_marks.dart';
@@ -149,6 +155,12 @@ final Map<String, Widget Function()> _adminScreens = {
   'quizzes': () => const AdminQuizzesScreen(),
   'years': () => const AdminYearsScreen(),
   'users': () => const AdminUsersScreen(),
+  'admissions': () => const AdminAdmissionsScreen(),
+  'reportcards': () => const AdminReportCardsScreen(),
+  'payroll': () => const AdminPayrollScreen(),
+  'hostel': () => const AdminHostelScreen(),
+  'transport': () => const AdminTransportScreen(),
+  'courses': () => const AdminCoursesScreen(),
 };
 
 /// Admin modules that have an inline create flow, keyed by module key.
