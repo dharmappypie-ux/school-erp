@@ -16,6 +16,7 @@ import '../admin/admin_broadcast.dart';
 import '../admin/admin_inventory.dart';
 import '../admin/admin_quizzes.dart';
 import '../admin/admin_years.dart';
+import '../admin/admin_users.dart';
 import '../admin/admin_attendance.dart';
 import '../admin/admin_leave.dart';
 import '../exams/exams_marks.dart';
@@ -142,6 +143,7 @@ final Map<String, Widget Function()> _adminScreens = {
   'inventory': () => const AdminInventoryScreen(),
   'quizzes': () => const AdminQuizzesScreen(),
   'years': () => const AdminYearsScreen(),
+  'users': () => const AdminUsersScreen(),
 };
 
 /// Admin modules that have an inline create flow, keyed by module key.

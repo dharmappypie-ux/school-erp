@@ -121,6 +121,10 @@ final adminQuizzesProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
 final adminYearsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/years'));
 
+/// Users + assignable roles, for user management.
+final adminUsersProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/users'));
+
 /// The signed-in child's homework with submission state (live).
 final studentHomeworkProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/parent/homework/list'));
