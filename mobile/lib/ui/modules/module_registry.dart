@@ -31,6 +31,7 @@ import '../admin/admin_timetable.dart';
 import '../admin/admin_analytics.dart';
 import '../admin/admin_insights.dart';
 import '../admin/admin_reports.dart';
+import '../admin/admin_ask.dart';
 import '../admin/admin_attendance.dart';
 import '../admin/admin_leave.dart';
 import '../exams/exams_marks.dart';
@@ -58,7 +59,7 @@ const _staff = {UserRole.teacher, UserRole.admin};
 /// Modules a teacher opens through the same bespoke screen as an admin
 /// (the mobile API gates each action by permission). Includes LMS authoring and
 /// the analytics/insights dashboards the teacher has read access to.
-const _teacherAuthoring = {'courses', 'quizzes', 'reportcards', 'analytics', 'aiinsights'};
+const _teacherAuthoring = {'courses', 'quizzes', 'reportcards', 'analytics', 'aiinsights', 'ask'};
 const _admin = {UserRole.admin};
 const _teacherAdmin = {UserRole.teacher, UserRole.admin};
 
@@ -96,6 +97,7 @@ const kModules = <ModuleDef>[
   // Intelligence
   ModuleDef('analytics', 'Analytics', Icons.bar_chart_rounded, AppColors.primary, 'Intelligence', _teacherAdmin),
   ModuleDef('aiinsights', 'AI insights', Icons.auto_awesome_rounded, AppColors.teal, 'Intelligence', _teacherAdmin),
+  ModuleDef('ask', 'Ask AI', Icons.chat_rounded, AppColors.primary, 'Intelligence', _teacherAdmin),
   ModuleDef('reports', 'Reports', Icons.summarize_rounded, AppColors.gold, 'Intelligence', _admin),
   // Administration
   ModuleDef('users', 'Users', Icons.manage_accounts_rounded, AppColors.primary, 'Administration', _admin),
@@ -187,6 +189,7 @@ final Map<String, Widget Function()> _adminScreens = {
   'analytics': () => const AdminAnalyticsScreen(),
   'aiinsights': () => const AdminInsightsScreen(),
   'reports': () => const AdminReportsScreen(),
+  'ask': () => const AdminAskScreen(),
 };
 
 /// Admin modules that have an inline create flow, keyed by module key.
