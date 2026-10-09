@@ -44,6 +44,12 @@ function createClient(): PrismaClient {
     connectionString: resolveConnectionString(),
     max: 3,
     connectionTimeoutMillis: 10000,
+    // Hand idle connections back rather than holding them for the process's
+    // life. In dev this matters most: Turbopack rebuilds the module graph on
+    // each hot reload, the globalThis singleton below does not always survive
+    // it, and without a timeout every stale pool keeps three connections open
+    // until Postgres refuses new ones with "too many clients already".
+    idleTimeoutMillis: 10000,
   });
   return new PrismaClient({
     adapter,

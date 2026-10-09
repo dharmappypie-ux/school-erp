@@ -116,6 +116,23 @@ export const PERMISSIONS = {
   "lms.publish": "Publish and unpublish courses to students",
 
   // Inventory & stock
+  // Student conduct — praise and concern alike. Reading is split from writing
+  // because a class teacher should add notes for their own students while only
+  // senior staff see the school-wide ledger.
+  "behaviour.read": "View student behaviour and appreciation notes",
+  "behaviour.manage": "Record and retract behaviour notes",
+
+  // Student leave — a request raised from the portal and decided by staff.
+  // Applying is split from deciding so a guardian can never approve their own
+  // child's absence.
+  "studentleave.apply": "Request leave for a student",
+  "studentleave.read": "View student leave requests",
+  "studentleave.approve": "Approve or reject student leave",
+
+  // Recruitment
+  "careers.read": "View job postings and applications",
+  "careers.manage": "Publish job postings and manage applicants",
+
   "inventory.read": "View inventory items and stock levels",
   "inventory.manage": "Add and edit inventory items and categories",
   "inventory.movement": "Record stock receipts, issues and adjustments",
@@ -233,6 +250,12 @@ export const ROLE_PRESETS: RolePreset[] = [
     name: "School Administrator",
     description: "Day-to-day administration of every module.",
     permissions: [
+      "studentleave.read",
+      "studentleave.approve",
+      "behaviour.read",
+      "behaviour.manage",
+      "careers.read",
+      "careers.manage",
       "school.read",
       "school.update",
       "school.settings",
@@ -278,6 +301,12 @@ export const ROLE_PRESETS: RolePreset[] = [
     name: "Principal",
     description: "Oversight of academics, staff and analytics.",
     permissions: [
+      "studentleave.read",
+      "studentleave.approve",
+      "behaviour.read",
+      "behaviour.manage",
+      "careers.read",
+      "careers.manage",
       "school.read",
       "users.read",
       "audit.read",
@@ -338,6 +367,10 @@ export const ROLE_PRESETS: RolePreset[] = [
     name: "Teacher",
     description: "Class teaching, attendance, marks and homework.",
     permissions: [
+      "studentleave.read",
+      "studentleave.approve",
+      "behaviour.read",
+      "behaviour.manage",
       "academics.read",
       "students.read",
       "guardians.read",
@@ -439,6 +472,8 @@ export const ROLE_PRESETS: RolePreset[] = [
     name: "Front Desk",
     description: "Enquiries, admissions intake and visitor handling.",
     permissions: [
+      "studentleave.read",
+      "careers.read",
       "students.read",
       "guardians.read",
       "guardians.manage",
@@ -460,14 +495,27 @@ export const ROLE_PRESETS: RolePreset[] = [
     key: "STUDENT",
     name: "Student",
     description: "Self-service portal for the logged-in student.",
-    permissions: ["portal.access", "messages.use", "homework.submit", "quiz.attempt"],
+    permissions: [
+      "studentleave.apply",
+      "portal.access",
+      "messages.use",
+      "homework.submit",
+      "quiz.attempt",
+    ],
     home: "/portal",
   },
   {
     key: "PARENT",
     name: "Parent / Guardian",
     description: "Portal covering the guardian's own children only.",
-    permissions: ["portal.access", "messages.use", "admissions.apply", "homework.submit", "quiz.attempt"],
+    permissions: [
+      "studentleave.apply",
+      "portal.access",
+      "messages.use",
+      "admissions.apply",
+      "homework.submit",
+      "quiz.attempt",
+    ],
     home: "/portal",
   },
 ];

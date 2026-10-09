@@ -45,6 +45,26 @@ const EditStaffSchema = z.object({
   city: optionalText,
   state: optionalText,
   postalCode: optionalText,
+  fatherOrHusbandName: optionalText,
+  maritalStatus: optionalEnum([
+    "MARRIED",
+    "UNMARRIED",
+    "WIDOWED",
+    "DIVORCED",
+  ] as const),
+  policeVerificationStatus: z.enum([
+    "NOT_STARTED",
+    "SUBMITTED",
+    "VERIFIED",
+    "REJECTED",
+    "EXPIRED",
+  ]),
+  policeVerificationDate: optionalText,
+  policeVerificationRef: optionalText,
+  drivingLicenceNo: optionalText,
+  drivingLicenceExpiry: optionalText,
+  oasisId: optionalText,
+  teacherNationalCode: optionalText,
 });
 
 /**
@@ -156,6 +176,28 @@ export async function editStaff(
           city: input.city ?? null,
           state: input.state ?? null,
           postalCode: input.postalCode ?? null,
+          fatherOrHusbandName: input.fatherOrHusbandName ?? null,
+          maritalStatus: input.maritalStatus ?? null,
+          policeVerificationStatus: input.policeVerificationStatus,
+          // Date and reference belong to a check that actually happened; if the
+          // status goes back to "not started" they would otherwise linger and
+          // make an unverified employee look cleared.
+          policeVerificationDate:
+            input.policeVerificationStatus === "NOT_STARTED"
+              ? null
+              : input.policeVerificationDate
+                ? new Date(`${input.policeVerificationDate}T00:00:00.000Z`)
+                : null,
+          policeVerificationRef:
+            input.policeVerificationStatus === "NOT_STARTED"
+              ? null
+              : (input.policeVerificationRef ?? null),
+          drivingLicenceNo: input.drivingLicenceNo ?? null,
+          drivingLicenceExpiry: input.drivingLicenceExpiry
+            ? new Date(`${input.drivingLicenceExpiry}T00:00:00.000Z`)
+            : null,
+          oasisId: input.oasisId ?? null,
+          teacherNationalCode: input.teacherNationalCode ?? null,
         },
       });
 

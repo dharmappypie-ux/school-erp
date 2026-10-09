@@ -43,7 +43,33 @@ export interface StaffDefaults {
   city: string;
   state: string;
   postalCode: string;
+
+  fatherOrHusbandName: string;
+  maritalStatus: string;
+  policeVerificationStatus: string;
+  policeVerificationDate: string;
+  policeVerificationRef: string;
+  drivingLicenceNo: string;
+  drivingLicenceExpiry: string;
+  oasisId: string;
+  teacherNationalCode: string;
 }
+
+const MARITAL_STATUSES = [
+  { value: "", label: "Not recorded" },
+  { value: "MARRIED", label: "Married" },
+  { value: "UNMARRIED", label: "Unmarried" },
+  { value: "WIDOWED", label: "Widowed" },
+  { value: "DIVORCED", label: "Divorced" },
+];
+
+const POLICE_STATUSES = [
+  { value: "NOT_STARTED", label: "Not started" },
+  { value: "SUBMITTED", label: "Submitted — awaiting result" },
+  { value: "VERIFIED", label: "Verified" },
+  { value: "REJECTED", label: "Rejected" },
+  { value: "EXPIRED", label: "Expired — needs renewal" },
+];
 
 function Submit() {
   const { pending } = useFormStatus();
@@ -175,6 +201,80 @@ export function StaffEditForm({
           </Field>
           <Field label="Postal code">
             <Input name="postalCode" defaultValue={v("postalCode")} />
+          </Field>
+          <Field label="Father's / husband's name">
+            <Input name="fatherOrHusbandName" defaultValue={v("fatherOrHusbandName")} />
+          </Field>
+          <Field label="Marital status">
+            <Select name="maritalStatus" defaultValue={v("maritalStatus")}>
+              {MARITAL_STATUSES.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Police verification"
+          description="A legal precondition for school employment — the first thing an inspection asks for"
+        />
+        <div className="grid gap-4 px-5 pb-5 sm:grid-cols-2">
+          <Field label="Status" required>
+            <Select
+              name="policeVerificationStatus"
+              defaultValue={v("policeVerificationStatus")}
+            >
+              {POLICE_STATUSES.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Date of verification">
+            <Input
+              name="policeVerificationDate"
+              type="date"
+              defaultValue={v("policeVerificationDate")}
+            />
+          </Field>
+          <Field label="Reference number" error={errors.policeVerificationRef}>
+            <Input
+              name="policeVerificationRef"
+              defaultValue={v("policeVerificationRef")}
+            />
+          </Field>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Statutory codes & licence"
+          description="Driving licence is mandatory for drivers"
+        />
+        <div className="grid gap-4 px-5 pb-5 sm:grid-cols-2">
+          <Field label="OASIS ID" hint="CBSE staff code.">
+            <Input name="oasisId" defaultValue={v("oasisId")} />
+          </Field>
+          <Field label="Teacher National Code" hint="NCTE.">
+            <Input
+              name="teacherNationalCode"
+              defaultValue={v("teacherNationalCode")}
+            />
+          </Field>
+          <Field label="Driving licence no." error={errors.drivingLicenceNo}>
+            <Input name="drivingLicenceNo" defaultValue={v("drivingLicenceNo")} />
+          </Field>
+          <Field label="Licence expiry">
+            <Input
+              name="drivingLicenceExpiry"
+              type="date"
+              defaultValue={v("drivingLicenceExpiry")}
+            />
           </Field>
         </div>
       </Card>

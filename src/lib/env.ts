@@ -45,7 +45,10 @@ export const env = {
   databaseUrl: resolveDatabaseUrl(),
 
   authSecret: str("AUTH_SECRET", DEV_AUTH_SECRET),
-  sessionTtlHours: num("SESSION_TTL_HOURS", 12),
+  // Four hours. A school ERP is used on shared staffroom and front-office
+  // machines where someone walks away mid-session, and it holds minors' records,
+  // so an idle terminal should not stay signed in for a working day.
+  sessionTtlHours: num("SESSION_TTL_HOURS", 4),
 
   appUrl: str("APP_URL", "http://localhost:3000"),
   appName: str("NEXT_PUBLIC_APP_NAME", "Vidyalaya ERP"),

@@ -34,6 +34,9 @@ import '../admin/admin_reports.dart';
 import '../admin/admin_ask.dart';
 import '../admin/admin_attendance.dart';
 import '../admin/admin_leave.dart';
+import '../admin/admin_student_leave.dart';
+import '../admin/admin_behaviour.dart';
+import '../screens/my_leave.dart';
 import '../exams/exams_marks.dart';
 import '../messages/messages_screen.dart';
 import '../homework/student_homework.dart';
@@ -69,6 +72,8 @@ const kModules = <ModuleDef>[
   ModuleDef('students', 'Students', Icons.school_rounded, AppColors.primary, 'People', _admin),
   ModuleDef('staff', 'Staff', Icons.badge_rounded, AppColors.teal, 'People', _admin),
   ModuleDef('admissions', 'Admissions', Icons.how_to_reg_rounded, AppColors.gold, 'People', _admin),
+  // Teachers record and read behaviour notes; the endpoints gate retraction.
+  ModuleDef('behaviour', 'Behaviour', Icons.emoji_people_rounded, AppColors.teal, 'People', _staff),
   // Academics
   ModuleDef('classes', 'Classes & subjects', Icons.meeting_room_rounded, AppColors.primary, 'Academics', _staff),
   ModuleDef('attendance', 'Attendance', Icons.fact_check_rounded, AppColors.teal, 'Academics', _all),
@@ -89,7 +94,11 @@ const kModules = <ModuleDef>[
   ModuleDef('library', 'Library', Icons.local_library_rounded, AppColors.teal, 'Operations', _all),
   ModuleDef('hostel', 'Hostel', Icons.night_shelter_rounded, AppColors.primary, 'Operations', _admin),
   ModuleDef('inventory', 'Inventory', Icons.inventory_2_rounded, AppColors.gold, 'Operations', _admin),
-  ModuleDef('leave', 'Leave', Icons.event_busy_rounded, AppColors.danger, 'Operations', _teacherAdmin),
+  // Shown to everyone, but it means different things: staff open the staff
+  // leave desk, a family opens their own child's requests. openModule branches
+  // on role, so each sees only one of them.
+  ModuleDef('leave', 'Leave', Icons.event_busy_rounded, AppColors.danger, 'Operations', _all),
+  ModuleDef('studentleave', 'Student leave', Icons.event_available_rounded, AppColors.teal, 'Operations', _staff),
   // Engagement
   ModuleDef('notices', 'Notices', Icons.campaign_rounded, AppColors.gold, 'Engagement', _all),
   ModuleDef('messages', 'Messages', Icons.forum_rounded, AppColors.teal, 'Engagement', _all),
@@ -131,6 +140,7 @@ void openModule(BuildContext context, UserRole role, ModuleDef m) {
       'quizzes' => const QuizzesScreen(),
       'fees' => const FeesScreen(pushed: true),
       'notices' => const NoticesScreen(pushed: true),
+      'leave' => const MyLeaveScreen(),
       _ => ModuleListScreen(role: roleSegment(role), name: m.key, title: m.label, icon: m.icon),
     };
   } else if (role == UserRole.teacher && m.key == 'homework') {
@@ -141,6 +151,10 @@ void openModule(BuildContext context, UserRole role, ModuleDef m) {
     screen = const TeacherClassesScreen();
   } else if (role == UserRole.teacher && m.key == 'attendance') {
     screen = const TeacherClassesScreen();
+  } else if (role == UserRole.teacher && m.key == 'studentleave') {
+    screen = const AdminStudentLeaveScreen();
+  } else if (role == UserRole.teacher && m.key == 'behaviour') {
+    screen = const AdminBehaviourScreen();
   } else if (role == UserRole.teacher && _teacherAuthoring.contains(m.key)) {
     // Teachers hold lms.manage / quiz.manage / reportcards.generate, so they get
     // the same bespoke authoring screens as admins; the endpoints gate each action.
@@ -170,6 +184,8 @@ final Map<String, Widget Function()> _adminScreens = {
   'classes': () => const AdminClassesScreen(),
   'attendance': () => const AdminAttendanceScreen(),
   'leave': () => const AdminLeaveScreen(),
+  'studentleave': () => const AdminStudentLeaveScreen(),
+  'behaviour': () => const AdminBehaviourScreen(),
   'exams': () => const ExamsScreen(),
   'fees': () => const AdminFeesScreen(),
   'library': () => const AdminLibraryScreen(),

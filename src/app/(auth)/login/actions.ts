@@ -12,7 +12,6 @@ import { resolveHomeRoute } from "@/lib/permissions";
 const LoginSchema = z.object({
   email: z.string().trim().toLowerCase().email("Enter a valid email address"),
   password: z.string().min(1, "Enter your password"),
-  school: z.string().trim().optional(),
 });
 
 export interface LoginState {
@@ -30,10 +29,6 @@ export async function loginAction(
   const parsed = LoginSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
-    // formData.get returns null when the field is absent; the school select can
-    // submit null, and an optional string field rejects null — coerce to
-    // undefined so "no school chosen" validates (auto-detect by email).
-    school: formData.get("school") ?? undefined,
   });
 
   if (!parsed.success) {
@@ -44,15 +39,15 @@ export async function loginAction(
     return { fieldErrors };
   }
 
-  const { email, password, school } = parsed.data;
+  const { email, password } = parsed.data;
 
-  // One email may exist in more than one tenant, so narrow by school when the
-  // caller supplies one.
+  // One email may exist in more than one tenant; try every active-school
+  // account with this address and sign in to whichever the password matches.
   const candidates = await prisma.user.findMany({
     where: {
       email,
       deletedAt: null,
-      school: school ? { slug: school, isActive: true } : { isActive: true },
+      school: { isActive: true },
     },
     include: { roles: { select: { key: true } }, school: { select: { slug: true } } },
     take: 5,

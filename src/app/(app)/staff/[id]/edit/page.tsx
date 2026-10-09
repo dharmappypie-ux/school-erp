@@ -27,6 +27,11 @@ export default async function EditStaffPage({ params }: PageProps<"/staff/[id]/e
         dateOfBirth: true, gender: true, staffType: true, employmentStatus: true,
         departmentId: true, designationId: true, qualification: true, experience: true,
         addressLine1: true, city: true, state: true, postalCode: true,
+        fatherOrHusbandName: true, maritalStatus: true,
+        policeVerificationStatus: true, policeVerificationDate: true,
+        policeVerificationRef: true,
+        drivingLicenceNo: true, drivingLicenceExpiry: true,
+        oasisId: true, teacherNationalCode: true,
         user: { select: { roles: { select: { key: true } } } },
       },
     }),
@@ -56,6 +61,15 @@ export default async function EditStaffPage({ params }: PageProps<"/staff/[id]/e
     city: staff.city ?? "",
     state: staff.state ?? "",
     postalCode: staff.postalCode ?? "",
+    fatherOrHusbandName: staff.fatherOrHusbandName ?? "",
+    maritalStatus: staff.maritalStatus ?? "",
+    policeVerificationStatus: staff.policeVerificationStatus,
+    policeVerificationDate: asDate(staff.policeVerificationDate),
+    policeVerificationRef: staff.policeVerificationRef ?? "",
+    drivingLicenceNo: staff.drivingLicenceNo ?? "",
+    drivingLicenceExpiry: asDate(staff.drivingLicenceExpiry),
+    oasisId: staff.oasisId ?? "",
+    teacherNationalCode: staff.teacherNationalCode ?? "",
   };
 
   return (

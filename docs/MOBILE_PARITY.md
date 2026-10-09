@@ -105,3 +105,37 @@ A section is only ✅ when the app can perform the section's **actions**, not ju
 6. Library issue/return.
 7. Notices edit; Messages compose/reply; Broadcasts send.
 8. Remaining operations (hostel/inventory/transport/timetable/quizzes/courses/users/reports).
+
+## Student leave (Oct 2026)
+
+Brought the web's student-leave flow to the app, both sides of it.
+
+**API**
+- `GET/POST /api/mobile/v1/parent/leave` — the family's own requests, and raising one.
+- `POST /api/mobile/v1/parent/leave/cancel` — withdraw while still pending.
+- `GET /api/mobile/v1/admin/student-leave` — the staff queue, pending first.
+- `POST /api/mobile/v1/admin/student-leave/decide` — approve or reject.
+
+The child is resolved from the session, never from the request body, so a guardian cannot
+raise or withdraw leave for another family's child by editing a payload. Validation is
+shared with the web through `src/lib/student-leave.ts` rather than reimplemented, so the
+half-day arithmetic and the date rules cannot drift between the two clients.
+
+**App**
+- `lib/ui/screens/my_leave.dart` — parents and students: pick dates, choose the portion of
+  the day, give a reason, withdraw while pending.
+- `lib/ui/admin/admin_student_leave.dart` — staff: approve, or reject with the reason the
+  server requires (asked for in the card rather than failing after the tap).
+- `module_registry.dart`: `leave` is now visible to every role and branches by role —
+  staff get the staff-leave desk, a family gets their own requests. `studentleave` is the
+  new staff-only queue, open to teachers as well as admins.
+
+**Half day in the register.** `take_attendance.dart` offered only P / A / L / Lv, so a
+half day could never be marked even though the API already accepted `HALF_DAY`. Added as a
+fifth chip (`½`). EXCUSED is deliberately left web-only: six chips squeeze the name column
+too far on a phone, and it is the rarer case.
+
+Verified against the running dev server with real tokens: half-day request (0.5 days,
+leaving after period 2), duplicate-date refusal, half-day-across-a-span refusal,
+reject-without-reason refusal, re-deciding refusal, and the permission boundaries — a
+parent token gets 403 on both staff endpoints and cannot withdraw an approved request.

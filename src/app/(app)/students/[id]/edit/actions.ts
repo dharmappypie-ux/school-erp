@@ -26,6 +26,41 @@ const optionalText = z
   .optional()
   .transform((value) => (value === "" ? undefined : value));
 
+/** An unchecked checkbox submits nothing at all, so absence means false. */
+const checkbox = z
+  .string()
+  .optional()
+  .transform((value) => value === "true" || value === "on");
+
+/** Whole number, or undefined when the field was left blank. */
+const optionalInt = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value, ctx) => {
+    if (!value) return undefined;
+    const parsedValue = Number.parseInt(value, 10);
+    if (Number.isNaN(parsedValue) || parsedValue < 0) {
+      ctx.addIssue({ code: "custom", message: "Enter a whole number" });
+      return z.NEVER;
+    }
+    return parsedValue;
+  });
+
+const optionalDecimal = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value, ctx) => {
+    if (!value) return undefined;
+    const parsedValue = Number.parseFloat(value);
+    if (Number.isNaN(parsedValue) || parsedValue < 0) {
+      ctx.addIssue({ code: "custom", message: "Enter a number" });
+      return z.NEVER;
+    }
+    return parsedValue;
+  });
+
 const EditStudentSchema = z.object({
   id: z.string().min(1),
   firstName: z.string().trim().min(1, "First name is required"),
@@ -45,6 +80,43 @@ const EditStudentSchema = z.object({
   previousSchool: optionalText,
   medicalNotes: optionalText,
   exitReason: optionalText,
+
+  // Statutory identifiers (India)
+  aadhaarNumber: optionalText,
+  apaarId: optionalText,
+  penNumber: optionalText,
+  udiseNumber: optionalText,
+  boardRegNoIX: optionalText,
+  boardRegNoXI: optionalText,
+
+  // Equity and welfare
+  caste: optionalText,
+  isMinority: checkbox,
+  isBpl: checkbox,
+  isEws: checkbox,
+  isRteQuota: checkbox,
+  isSingleParent: checkbox,
+  isSingleChild: checkbox,
+  isStaffWard: checkbox,
+  isAlumniChild: checkbox,
+  hasDisability: checkbox,
+  disabilityType: optionalText,
+  hasSpecialNeeds: checkbox,
+
+  // Admission context
+  placeOfBirth: optionalText,
+  languageAtHome: optionalText,
+  house: optionalText,
+  admissionFileNo: optionalText,
+  previousTcNumber: optionalText,
+  previousTcDate: optionalText,
+  previousBoard: optionalText,
+
+  // Medical
+  heightCm: optionalInt,
+  weightKg: optionalDecimal,
+  allergies: optionalText,
+  chronicAilment: optionalText,
 });
 
 /**
@@ -101,6 +173,43 @@ export async function editStudent(
       postalCode: input.postalCode ?? null,
       previousSchool: input.previousSchool ?? null,
       medicalNotes: input.medicalNotes ?? null,
+
+      aadhaarNumber: input.aadhaarNumber ?? null,
+      apaarId: input.apaarId ?? null,
+      penNumber: input.penNumber ?? null,
+      udiseNumber: input.udiseNumber ?? null,
+      boardRegNoIX: input.boardRegNoIX ?? null,
+      boardRegNoXI: input.boardRegNoXI ?? null,
+
+      caste: input.caste ?? null,
+      isMinority: input.isMinority,
+      isBpl: input.isBpl,
+      isEws: input.isEws,
+      isRteQuota: input.isRteQuota,
+      isSingleParent: input.isSingleParent,
+      isSingleChild: input.isSingleChild,
+      isStaffWard: input.isStaffWard,
+      isAlumniChild: input.isAlumniChild,
+      hasDisability: input.hasDisability,
+      // Clearing the flag clears the description with it, so a stale
+      // "dyslexia" cannot survive on a student no longer marked CWSN.
+      disabilityType: input.hasDisability ? (input.disabilityType ?? null) : null,
+      hasSpecialNeeds: input.hasSpecialNeeds,
+
+      placeOfBirth: input.placeOfBirth ?? null,
+      languageAtHome: input.languageAtHome ?? null,
+      house: input.house ?? null,
+      admissionFileNo: input.admissionFileNo ?? null,
+      previousTcNumber: input.previousTcNumber ?? null,
+      previousTcDate: input.previousTcDate
+        ? new Date(`${input.previousTcDate}T00:00:00.000Z`)
+        : null,
+      previousBoard: input.previousBoard ?? null,
+
+      heightCm: input.heightCm ?? null,
+      weightKg: input.weightKg ?? null,
+      allergies: input.allergies ?? null,
+      chronicAilment: input.chronicAilment ?? null,
       exitReason: input.status === "ACTIVE" ? null : input.exitReason ?? null,
       exitDate: leavingActive
         ? (student.exitDate ?? new Date())

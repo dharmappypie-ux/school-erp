@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 
 import { LoginForm } from "@/app/(auth)/login/login-form";
 import { getSessionContext } from "@/lib/auth";
-import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
 import { resolveHomeRoute } from "@/lib/permissions";
 
@@ -11,12 +10,6 @@ export const metadata = { title: "Sign in" };
 export default async function LoginPage() {
   const session = await getSessionContext();
   if (session) redirect(resolveHomeRoute(session.roleKeys));
-
-  const schools = await prisma.school.findMany({
-    where: { isActive: true },
-    select: { slug: true, name: true },
-    orderBy: { name: "asc" },
-  });
 
   return (
     <main className="flex min-h-screen">
@@ -73,7 +66,7 @@ export default async function LoginPage() {
             </p>
           </div>
 
-          <LoginForm schools={schools} />
+          <LoginForm />
         </div>
       </section>
     </main>
