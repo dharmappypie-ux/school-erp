@@ -36,6 +36,7 @@ import '../admin/admin_attendance.dart';
 import '../admin/admin_leave.dart';
 import '../admin/admin_student_leave.dart';
 import '../admin/admin_behaviour.dart';
+import '../admin/admin_careers.dart';
 import '../screens/my_leave.dart';
 import '../exams/exams_marks.dart';
 import '../messages/messages_screen.dart';
@@ -74,6 +75,7 @@ const kModules = <ModuleDef>[
   ModuleDef('admissions', 'Admissions', Icons.how_to_reg_rounded, AppColors.gold, 'People', _admin),
   // Teachers record and read behaviour notes; the endpoints gate retraction.
   ModuleDef('behaviour', 'Behaviour', Icons.emoji_people_rounded, AppColors.teal, 'People', _staff),
+  ModuleDef('careers', 'Careers', Icons.work_outline_rounded, AppColors.gold, 'People', _admin),
   // Academics
   ModuleDef('classes', 'Classes & subjects', Icons.meeting_room_rounded, AppColors.primary, 'Academics', _staff),
   ModuleDef('attendance', 'Attendance', Icons.fact_check_rounded, AppColors.teal, 'Academics', _all),
@@ -186,6 +188,7 @@ final Map<String, Widget Function()> _adminScreens = {
   'leave': () => const AdminLeaveScreen(),
   'studentleave': () => const AdminStudentLeaveScreen(),
   'behaviour': () => const AdminBehaviourScreen(),
+  'careers': () => const AdminCareersScreen(),
   'exams': () => const ExamsScreen(),
   'fees': () => const AdminFeesScreen(),
   'library': () => const AdminLibraryScreen(),

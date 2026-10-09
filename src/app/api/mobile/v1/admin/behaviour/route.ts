@@ -37,7 +37,7 @@ const CreateSchema = z.object({
  * stays honest, and the client strikes them through.
  */
 export async function GET(req: Request) {
-  const guard = await requireMobile(req, "behaviour.read");
+  const guard = await requireMobile(req, ["behaviour.read", "behaviour.manage"]);
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 
@@ -112,6 +112,7 @@ export async function GET(req: Request) {
   return cors(
     NextResponse.json({
       title: "Behaviour",
+      canManage,
       items,
       counts: {
         appreciations: live.filter((item) => item.kind === "APPRECIATION").length,

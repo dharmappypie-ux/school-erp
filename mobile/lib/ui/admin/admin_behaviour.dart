@@ -12,17 +12,6 @@ import '../widgets/widgets.dart';
 final _apiDate = DateFormat('yyyy-MM-dd');
 final _showDate = DateFormat('d MMM yyyy');
 
-/// The roll runs to hundreds and the students endpoint pages at 30, so the
-/// search goes to the server rather than filtering one page locally. The key is
-/// the *first* word only: the server ORs `contains` over firstName and lastName
-/// separately, so "Aadhya Patel" as one string matches neither — the rest of
-/// the words narrow the returned page on the client instead.
-final _rollSearchProvider =
-    FutureProvider.autoDispose.family<Map<String, dynamic>?, String>((ref, firstWord) {
-  return ref.watch(apiProvider).getJson('/api/mobile/v1/admin/students',
-      query: {'q': firstWord, 'status': 'ACTIVE'});
-});
-
 const _kinds = [
   ('APPRECIATION', 'Appreciation — something done well'),
   ('CONCERN', 'Concern — something to address'),
@@ -87,6 +76,9 @@ class AdminBehaviourScreen extends ConsumerWidget {
         (async.value?['items'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
     final counts = (async.value?['counts'] as Map?)?.cast<String, dynamic>() ?? const {};
     final offline = !async.isLoading && async.value == null;
+    // The server hides the form for a read-only caller rather than letting them
+    // fill it in and meet a 403, matching the web page.
+    final canManage = async.value?['canManage'] == true;
     final waiting = (counts['awaitingGuardian'] as num?)?.toInt() ?? 0;
 
     return DetailScaffold(
@@ -121,8 +113,14 @@ class AdminBehaviourScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
         ],
-        const _RecordCard(),
-        const SizedBox(height: 16),
+        // Keyed because the stats card above it is conditional: the form moves
+        // from index 0 to index 2 the moment the list loads, and unkeyed
+        // reconciliation would tear it down and rebuild it — silently clearing
+        // a note a teacher was halfway through typing on a slow connection.
+        if (canManage) ...[
+          const _RecordCard(key: ValueKey('behaviour-record-form')),
+          const SizedBox(height: 16),
+        ],
         if (async.isLoading)
           const SizedBox(height: 140, child: Center(child: CircularProgressIndicator()))
         else if (offline)
@@ -186,8 +184,6 @@ class _CountDivider extends StatelessWidget {
       Container(width: 1, height: 34, color: AppColors.line);
 }
 
-// ---- the ledger ----------------------------------------------------------
-
 class _NoteCard extends ConsumerStatefulWidget {
   const _NoteCard({required this.r});
   final Map<String, dynamic> r;
@@ -196,13 +192,15 @@ class _NoteCard extends ConsumerStatefulWidget {
 }
 
 class _NoteCardState extends ConsumerState<_NoteCard> {
-  bool _busy = false;
+  /// Which of the two actions is in flight, so the spinner lands on the button
+  /// that was actually tapped.
+  String? _pending;
 
-  Future<void> _post(String path, String fallback) async {
-    setState(() => _busy = true);
+  Future<void> _post(String action, String path, String fallback) async {
+    setState(() => _pending = action);
     final res = await ref.read(apiProvider).postJson(path, {'id': widget.r['id']});
     if (!mounted) return;
-    setState(() => _busy = false);
+    setState(() => _pending = null);
     final msg = res.body?['message'] ?? res.body?['error'] ?? fallback;
     showToast(context, msg.toString(), error: !res.ok);
     if (res.ok) ref.invalidate(behaviourListProvider);
@@ -226,8 +224,11 @@ class _NoteCardState extends ConsumerState<_NoteCard> {
         ],
       ),
     );
-    if (ok != true) return;
-    await _post('/api/mobile/v1/admin/behaviour/retract', 'Could not retract the note.');
+    // The ledger can refresh while the dialog is open and take this card with
+    // it, so the answer is only acted on if the card is still alive.
+    if (!mounted || ok != true) return;
+    await _post('retract', '/api/mobile/v1/admin/behaviour/retract',
+        'Could not retract the note.');
   }
 
   @override
@@ -328,10 +329,12 @@ class _NoteCardState extends ConsumerState<_NoteCard> {
                       label: 'Guardian told',
                       color: AppColors.good,
                       filled: true,
-                      busy: _busy,
-                      onTap: _busy
+                      busy: _pending == 'notify',
+                      onTap: _pending != null
                           ? null
-                          : () => _post('/api/mobile/v1/admin/behaviour/notified',
+                          : () => _post(
+                              'notify',
+                              '/api/mobile/v1/admin/behaviour/notified',
                               'Could not mark the guardian as told.'),
                     ),
                   ),
@@ -342,8 +345,8 @@ class _NoteCardState extends ConsumerState<_NoteCard> {
                     label: 'Retract',
                     color: AppColors.danger,
                     filled: false,
-                    busy: _busy && notified,
-                    onTap: _busy ? null : _retract,
+                    busy: _pending == 'retract',
+                    onTap: _pending != null ? null : _retract,
                   ),
                 ),
               ],
@@ -388,10 +391,12 @@ class _Btn extends StatelessWidget {
           border: filled ? null : Border.all(color: color.withValues(alpha: 0.5)),
         ),
         child: busy
-            ? const SizedBox(
+            // White on the outlined variant would be a spinner on near-white.
+            ? SizedBox(
                 width: 18,
                 height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: filled ? Colors.white : color))
             : Text(label,
                 style: TextStyle(
                     fontWeight: FontWeight.w800,
@@ -402,10 +407,8 @@ class _Btn extends StatelessWidget {
   }
 }
 
-// ---- recording a note ----------------------------------------------------
-
 class _RecordCard extends StatelessWidget {
-  const _RecordCard();
+  const _RecordCard({super.key});
 
   @override
   Widget build(BuildContext context) => const AppCard(
@@ -457,11 +460,11 @@ class _RecordFormState extends ConsumerState<_RecordForm> {
     final picked = await showDatePicker(
       context: context,
       initialDate: _on,
-      firstDate: now.subtract(const Duration(days: 365)),
+      firstDate: DateTime(now.year - 5),
       // The server refuses a future date outright, so it is never offered.
       lastDate: now,
     );
-    if (picked == null) return;
+    if (picked == null || !mounted) return;
     setState(() => _on = picked);
   }
 
@@ -744,7 +747,7 @@ class _Results extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(_rollSearchProvider(words.first));
+    final async = ref.watch(rollSearchProvider(words.first));
     if (async.isLoading) {
       return const Padding(
         padding: EdgeInsets.only(top: 12),

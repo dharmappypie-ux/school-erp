@@ -77,6 +77,17 @@ final adminStaffProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
 final adminLeaveProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/leave'));
 
+/// The roll runs to hundreds and the students endpoint pages at 30, so the
+/// search goes to the server rather than filtering one page locally. The key is
+/// the *first* word only: the server ORs `contains` over firstName and lastName
+/// separately, so "Aadhya Patel" as one string matches neither — the rest of
+/// the words narrow the returned page on the client instead.
+final rollSearchProvider =
+    FutureProvider.autoDispose.family<Map<String, dynamic>?, String>((ref, firstWord) {
+  return ref.watch(apiProvider).getJson('/api/mobile/v1/admin/students',
+      query: {'q': firstWord, 'status': 'ACTIVE'});
+});
+
 /// The behaviour ledger — appreciation and concern alike, newest first.
 final behaviourListProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/behaviour'));
