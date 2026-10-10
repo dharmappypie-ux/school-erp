@@ -36,7 +36,8 @@
     "verify:nlquery": "tsx scripts/verify-nl-query.ts",
     "verify:ratelimit": "tsx scripts/verify-rate-limit.ts",
     "verify:collab": "tsx scripts/verify-collaboration.ts",
-    "verify:worksheet": "tsx scripts/verify-worksheet.ts"
+    "verify:worksheet": "tsx scripts/verify-worksheet.ts",
+    "sync:roles": "tsx scripts/sync-role-permissions.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",

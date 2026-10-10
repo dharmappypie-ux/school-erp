@@ -8,10 +8,18 @@ import '../widgets/form_widgets.dart';
 import '../widgets/widgets.dart';
 
 final _dateFmt = DateFormat('EEE, d MMM');
+// Five fits a phone row beside the roll number and an ellipsised name; a sixth
+// squeezes the name too far. EXCUSED is therefore web-only — it is rare, and a
+// teacher marking the register on a phone needs the common cases to stay large
+// enough to hit.
 const _statuses = [
   ('PRESENT', 'P', AppColors.good),
   ('ABSENT', 'A', AppColors.danger),
   ('LATE', 'L', AppColors.warn),
+  // A student collected after recess or leaving at the end of the second
+  // period is the ordinary case; recording it as a full absence misstates the
+  // attendance percentage every board return depends on.
+  ('HALF_DAY', '\u00bd', AppColors.teal),
   ('ON_LEAVE', 'Lv', AppColors.primary),
 ];
 

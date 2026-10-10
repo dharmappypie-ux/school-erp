@@ -69,6 +69,10 @@ export const TENANT_MODELS = new Set([
   "InventoryCategory",
   "InventoryItem",
   "Quiz",
+  "BehaviourLog",
+  "StudentLeaveRequest",
+  "JobPosting",
+  "JobApplication",
 ]);
 
 const READ_OPERATIONS = new Set([

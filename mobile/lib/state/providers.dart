@@ -77,6 +77,36 @@ final adminStaffProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
 final adminLeaveProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/leave'));
 
+/// The roll runs to hundreds and the students endpoint pages at 30, so the
+/// search goes to the server rather than filtering one page locally. The key is
+/// the *first* word only: the server ORs `contains` over firstName and lastName
+/// separately, so "Aadhya Patel" as one string matches neither — the rest of
+/// the words narrow the returned page on the client instead.
+final rollSearchProvider =
+    FutureProvider.autoDispose.family<Map<String, dynamic>?, String>((ref, firstWord) {
+  return ref.watch(apiProvider).getJson('/api/mobile/v1/admin/students',
+      query: {'q': firstWord, 'status': 'ACTIVE'});
+});
+
+/// The behaviour ledger — appreciation and concern alike, newest first.
+final behaviourListProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/behaviour'));
+
+/// Job postings. A reader without careers.manage sees only live adverts; the
+/// endpoint decides that, not the client.
+final careersListProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/careers'));
+
+/// Student leave requests (pending first) for staff to approve/reject. Separate
+/// from [adminLeaveProvider]: staff leave carries balances and salary effects,
+/// a student's does not.
+final studentLeaveProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/student-leave'));
+
+/// The signed-in family's own leave requests, for the parent app.
+final myLeaveProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/parent/leave'));
+
 /// Fee structures that can be billed.
 final feeStructuresProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/fees/structures'));

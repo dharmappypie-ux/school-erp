@@ -13,6 +13,11 @@ const OPTIONS: { value: Status; label: string; short: string; className: string 
   { value: "ABSENT", label: "Absent", short: "A", className: "bg-danger text-white border-danger" },
   { value: "LATE", label: "Late", short: "L", className: "bg-warning text-white border-warning" },
   { value: "ON_LEAVE", label: "Leave", short: "LV", className: "bg-info text-white border-info" },
+  // Half day is the common case of a student who leaves after recess or is
+  // collected mid-morning. It was in the schema and accepted by the server, but
+  // had no button here, so it could never actually be marked.
+  { value: "HALF_DAY", label: "Half day", short: "½", className: "bg-warning-soft text-warning border-warning" },
+  { value: "EXCUSED", label: "Excused", short: "E", className: "bg-surface-sunken text-muted-strong border-border-strong" },
 ];
 
 export interface SheetStudent {

@@ -123,10 +123,21 @@ export const getSessionContext = cache(
   },
 );
 
-/** Session context or a redirect to the login page. */
+/**
+ * Session context, or a redirect to sign in again.
+ *
+ * Someone who was working and got timed out is told that, rather than being
+ * dropped on a bare login form wondering whether they were signed out on
+ * purpose. The two cases are told apart by the cookie: it is still present
+ * (the browser keeps it until its own expiry, and a revoked or server-expired
+ * session leaves it behind entirely) while an anonymous visitor has none.
+ */
 export async function requireAuth(): Promise<SessionContext> {
   const context = await getSessionContext();
-  if (!context) redirect("/login");
+  if (!context) {
+    const hadSession = (await readSessionToken()) !== null;
+    redirect(hadSession ? "/session-expired" : "/login");
+  }
   return context;
 }
 

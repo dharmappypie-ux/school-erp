@@ -12,6 +12,7 @@ class AppTextField extends StatelessWidget {
     this.keyboard,
     this.maxLines = 1,
     this.required = false,
+    this.onChanged,
   });
   final TextEditingController controller;
   final String label;
@@ -19,6 +20,8 @@ class AppTextField extends StatelessWidget {
   final TextInputType? keyboard;
   final int maxLines;
   final bool required;
+  /// Optional: for fields that react as you type, such as a search box.
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +40,7 @@ class AppTextField extends StatelessWidget {
             controller: controller,
             keyboardType: keyboard,
             maxLines: maxLines,
+            onChanged: onChanged,
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             decoration: InputDecoration(
               hintText: hint ?? label,

@@ -147,6 +147,64 @@ enum ConcessionType {
   FULL_WAIVER
 }
 
+enum MaritalStatus {
+  MARRIED
+  UNMARRIED
+  WIDOWED
+  DIVORCED
+}
+
+enum PoliceVerificationStatus {
+  NOT_STARTED
+  SUBMITTED
+  VERIFIED
+  REJECTED
+  EXPIRED
+}
+
+/// A behaviour note is not only a complaint. Recording praise in the same
+/// ledger is what stops the log becoming a punishment record nobody will write
+/// in, and gives the risk model a positive signal as well as a negative one.
+enum BehaviourKind {
+  APPRECIATION
+  CONCERN
+  NEUTRAL
+}
+
+enum BehaviourSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum JobStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  FILLED
+}
+
+/// Which part of the school day a leave covers.
+///
+/// Half days are not a rounding convenience — a student collected after recess
+/// or leaving at the end of the second period is the ordinary case, and
+/// recording it as a full day's absence misstates the attendance percentage
+/// every board return depends on.
+enum LeavePortion {
+  FULL_DAY
+  FIRST_HALF
+  SECOND_HALF
+}
+
+enum JobApplicationStatus {
+  RECEIVED
+  SHORTLISTED
+  INTERVIEWED
+  OFFERED
+  REJECTED
+  WITHDRAWN
+}
+
 enum ExamStatus {
   PLANNED
   SCHEDULED
@@ -345,6 +403,10 @@ model School {
   savedReports          SavedReport[]
   courses               Course[]
   inventoryCategories   InventoryCategory[]
+  behaviourLogs         BehaviourLog[]
+  studentLeaveRequests  StudentLeaveRequest[]
+  jobPostings           JobPosting[]
+  jobApplications       JobApplication[]
   inventoryItems        InventoryItem[]
   quizzes               Quiz[]
   auditLogs             AuditLog[]
@@ -415,20 +477,22 @@ model User {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  roles             Role[]
-  sessions          Session[]
-  student           Student?
-  guardian          Guardian?
-  staff             StaffMember?
-  pushSubscriptions PushSubscription[]
-  auditLogs         AuditLog[]
-  notificationLogs  NotificationLog[]
-  sentMessages      Message[]             @relation("MessageSender")
-  threadMembers     MessageThreadMember[]
-  noticesAuthored   Notice[]              @relation("NoticeAuthor")
-  aiQueryLogs       AiQueryLog[]
-  savedReports      SavedReport[]
-  approvedLeaves    LeaveRequest[]        @relation("LeaveApprover")
+  roles                  Role[]
+  sessions               Session[]
+  student                Student?
+  guardian               Guardian?
+  staff                  StaffMember?
+  pushSubscriptions      PushSubscription[]
+  auditLogs              AuditLog[]
+  notificationLogs       NotificationLog[]
+  sentMessages           Message[]             @relation("MessageSender")
+  threadMembers          MessageThreadMember[]
+  noticesAuthored        Notice[]              @relation("NoticeAuthor")
+  aiQueryLogs            AiQueryLog[]
+  savedReports           SavedReport[]
+  approvedLeaves         LeaveRequest[]        @relation("LeaveApprover")
+  studentLeavesRequested StudentLeaveRequest[] @relation("StudentLeaveRequester")
+  studentLeavesDecided   StudentLeaveRequest[] @relation("StudentLeaveDecider")
 
   @@unique([schoolId, email])
   @@index([schoolId, status])
@@ -670,6 +734,62 @@ model Student {
   motherTongue  String?
   aadhaarNumber String?
 
+  // --- Statutory student identifiers (India) ---
+  // Carried per-student because UDISE+ returns, APAAR enrolment and CBSE board
+  // registration each demand a different number and a school is audited on all
+  // three. Nullable throughout: a school migrating mid-year will not have them.
+  /// APAAR / "One Nation One Student ID" — 12-digit national academic account.
+  apaarId      String?
+  /// Permanent Education Number, issued under UDISE+.
+  penNumber    String?
+  /// Per-student UDISE+ enrolment number (distinct from the school's UDISE code).
+  udiseNumber  String?
+  /// Board registration number taken in class IX (CBSE/CISCE/state).
+  boardRegNoIX String?
+  /// Board registration number taken in class XI.
+  boardRegNoXI String?
+
+  // --- Equity and welfare flags ---
+  // These drive statutory returns (RTE, UDISE+ CWSN) and fee concession
+  // eligibility. Booleans default false rather than null: "not recorded" and
+  // "not applicable" are the same thing for a return that counts heads.
+  caste           String?
+  isMinority      Boolean @default(false)
+  isBpl           Boolean @default(false)
+  isEws           Boolean @default(false)
+  isRteQuota      Boolean @default(false)
+  isSingleParent  Boolean @default(false)
+  isSingleChild   Boolean @default(false)
+  /// Ward of a serving staff member — usually carries an automatic concession.
+  isStaffWard     Boolean @default(false)
+  /// Either parent is an alumnus of this school.
+  isAlumniChild   Boolean @default(false)
+  /// CWSN (Children With Special Needs) — the UDISE+ reporting category.
+  hasDisability   Boolean @default(false)
+  /// Free text: the nature of the disability, when hasDisability is set.
+  disabilityType  String?
+  /// Specific learning difficulty (dyslexia and similar) — reported separately
+  /// from physical disability because exam boards grant different concessions.
+  hasSpecialNeeds Boolean @default(false)
+
+  // --- Admission context ---
+  placeOfBirth        String?
+  languageAtHome      String?
+  /// House/team for intra-school competition.
+  house               String?
+  admissionFileNo     String?
+  /// Transfer Certificate carried in from the previous school.
+  previousTcNumber    String?
+  previousTcDate      DateTime?
+  previousBoard       String?
+  previousClassResult String?
+
+  // --- Medical ---
+  heightCm       Int?
+  weightKg       Decimal? @db.Decimal(5, 2)
+  allergies      String?
+  chronicAilment String?
+
   photoUrl String?
   email    String?
   phone    String?
@@ -718,10 +838,13 @@ model Student {
   lessonProgress       LessonProgress[]
   quizAttempts         QuizAttempt[]
   admissionApplication AdmissionApplication?
+  behaviourLogs        BehaviourLog[]
+  leaveRequests        StudentLeaveRequest[]
 
   @@unique([schoolId, admissionNo])
   @@index([schoolId, status])
   @@index([schoolId, lastName, firstName])
+  @@index([schoolId, house])
   @@map("students")
 }
 
@@ -823,6 +946,24 @@ model StaffMember {
   pfNumber      String?
   esiNumber     String?
 
+  // --- Statutory staff checks (India) ---
+  // Police verification is a legal precondition for school employment and is
+  // the first thing an inspection asks for, so it is a first-class column
+  // rather than a document that may or may not have been uploaded.
+  policeVerificationStatus PoliceVerificationStatus @default(NOT_STARTED)
+  policeVerificationDate   DateTime?
+  policeVerificationRef    String?
+  /// Driving licence — mandatory for drivers, null for everyone else.
+  drivingLicenceNo         String?
+  drivingLicenceExpiry     DateTime?
+  /// CBSE OASIS staff code.
+  oasisId                  String?
+  /// Teacher National Code (NCTE).
+  teacherNationalCode      String?
+
+  fatherOrHusbandName String?
+  maritalStatus       MaritalStatus?
+
   customFields Json @default("{}")
 
   createdAt DateTime  @default(now())
@@ -848,9 +989,11 @@ model StaffMember {
   markEntriesRecorded      MarkEntry[]             @relation("MarkRecorder")
   coursesAuthored          Course[]                @relation("CourseAuthor")
   quizzesAuthored          Quiz[]                  @relation("QuizAuthor")
+  behaviourLogsRecorded    BehaviourLog[]          @relation("BehaviourRecorder")
 
   @@unique([schoolId, employeeId])
   @@index([schoolId, employmentStatus])
+  @@index([schoolId, policeVerificationStatus])
   @@map("staff_members")
 }
 
@@ -2670,8 +2813,8 @@ model Lesson {
   courseId String
   course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
-  sequence Int
-  title    String
+  sequence        Int
+  title           String
   /// Lesson body, authored as Markdown.
   content         String?
   videoUrl        String?
@@ -2771,11 +2914,11 @@ model InventoryItem {
   name         String
   sku          String?
   /// Unit of issue, e.g. "piece", "box", "litre".
-  unit         String  @default("unit")
+  unit         String   @default("unit")
   /// Current quantity on hand — the running balance of the movement ledger.
-  quantity     Int     @default(0)
+  quantity     Int      @default(0)
   /// Raise a low-stock flag at or below this level.
-  reorderLevel Int     @default(0)
+  reorderLevel Int      @default(0)
   location     String?
   unitCost     Decimal? @db.Decimal(12, 2)
   notes        String?
@@ -2846,11 +2989,11 @@ model Quiz {
   title       String
   description String?
 
-  status      QuizStatus @default(DRAFT)
-  publishedAt DateTime?
+  status           QuizStatus @default(DRAFT)
+  publishedAt      DateTime?
   /// Optional availability window. Null bounds mean "always", once published.
-  availableFrom  DateTime?
-  availableUntil DateTime?
+  availableFrom    DateTime?
+  availableUntil   DateTime?
   /// Optional soft time limit shown to the student (not server-enforced).
   timeLimitMinutes Int?
 
@@ -2871,13 +3014,13 @@ model QuizQuestion {
   quizId String
   quiz   Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
 
-  sequence Int
-  prompt   String
+  sequence      Int
+  prompt        String
   /// Choices in order.
-  options  String[]
+  options       String[]
   /// Zero-based index of the correct choice.
   correctOption Int
-  points        Int     @default(10)
+  points        Int      @default(10)
   /// Shown to the student after they submit, to explain the answer.
   explanation   String?
 
@@ -2894,9 +3037,9 @@ model QuizQuestion {
 /// One student's single attempt at a quiz. Scored on submission; `completedAt`
 /// distinguishes a finished attempt from one still in progress.
 model QuizAttempt {
-  id     String @id @default(cuid())
-  quizId String
-  quiz   Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  quizId    String
+  quiz      Quiz    @relation(fields: [quizId], references: [id], onDelete: Cascade)
   studentId String
   student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
@@ -2945,8 +3088,162 @@ model QuizAnswer {
 // static `public/uploads` behaviour.
 // ============================================================================
 
+/// A dated note about a student's conduct — praise, concern, or a neutral
+/// record of something that happened. Deliberately append-only in the UI: an
+/// entry that can be quietly edited after the fact is worthless in a dispute,
+/// so corrections are new entries and `retractedAt` hides a mistake without
+/// erasing it.
+model BehaviourLog {
+  id       String @id @default(cuid())
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  kind     BehaviourKind
+  severity BehaviourSeverity @default(LOW)
+  /// Short category: Discipline, Homework, Uniform, Helpfulness, Academic…
+  category String?
+  summary  String
+  detail   String?
+
+  occurredOn DateTime @db.Date
+
+  /// The staff member whose observation this is — not necessarily the user who
+  /// typed it, since an office clerk may enter a teacher's note.
+  recordedById String?
+  recordedBy   StaffMember? @relation("BehaviourRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+  enteredById  String?
+
+  /// Whether the guardian has been told. Drives the follow-up queue.
+  guardianNotifiedAt DateTime?
+
+  retractedAt DateTime?
+  retractedBy String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId, occurredOn])
+  @@index([studentId, occurredOn])
+  @@index([schoolId, kind])
+  @@map("behaviour_logs")
+}
+
+/// A staff vacancy published by the school.
+model JobPosting {
+  id       String @id @default(cuid())
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  /// Human-quotable reference printed on adverts, e.g. VID-JOB-7KQ2M4.
+  reference String
+
+  title            String
+  category         String
+  description      String?
+  responsibilities String?
+  location         String?
+
+  /// Minimum years of experience; null when open to freshers.
+  minExperience Int?
+  qualification String?
+  salaryRange   String?
+  vacancies     Int     @default(1)
+  cvRequired    Boolean @default(true)
+
+  status      JobStatus @default(DRAFT)
+  publishedAt DateTime?
+  closingDate DateTime?
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  applications JobApplication[]
+
+  @@unique([schoolId, reference])
+  @@index([schoolId, status, closingDate])
+  @@map("job_postings")
+}
+
+model JobApplication {
+  id       String @id @default(cuid())
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  jobId String
+  job   JobPosting @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  applicantName String
+  email         String?
+  phone         String?
+  experience    Int?
+  qualification String?
+  coverNote     String?
+  resumeUrl     String?
+
+  status JobApplicationStatus @default(RECEIVED)
+  notes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId, status])
+  @@index([jobId, status])
+  @@map("job_applications")
+}
+
+/// A student's request to be away from school, raised by the student or their
+/// guardian and decided by staff.
+///
+/// Separate from `LeaveRequest`, which is staff-only and tied to a
+/// `StaffMember` with leave balances and salary consequences. A student has no
+/// leave balance; what matters is that somebody asked, somebody agreed, and the
+/// register reflects it.
+model StudentLeaveRequest {
+  id       String @id @default(cuid())
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  fromDate DateTime     @db.Date
+  toDate   DateTime     @db.Date
+  /// Only meaningful when fromDate equals toDate; a multi-day leave is whole days.
+  portion  LeavePortion @default(FULL_DAY)
+
+  /// The period after which the student leaves, for a mid-day departure.
+  /// Null means the portion alone describes it.
+  leavingAfterPeriod Int?
+
+  reason        String
+  attachmentUrl String?
+
+  status LeaveStatus @default(PENDING)
+
+  /// The portal account that raised it — a guardian, or the student themselves.
+  requestedById String?
+  requestedBy   User?   @relation("StudentLeaveRequester", fields: [requestedById], references: [id], onDelete: SetNull)
+
+  decidedById  String?
+  decidedBy    User?     @relation("StudentLeaveDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt    DateTime?
+  decisionNote String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId, status])
+  @@index([studentId, fromDate])
+  @@index([schoolId, fromDate])
+  @@map("student_leave_requests")
+}
+
 model Upload {
-  key         String   @id
+  key         String @id
   data        Bytes
   contentType String
   size        Int

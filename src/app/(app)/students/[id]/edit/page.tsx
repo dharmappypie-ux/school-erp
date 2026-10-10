@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import {
   StudentEditForm,
   type StudentDefaults,
+  type StudentFlagDefaults,
 } from "@/app/(app)/students/[id]/edit/student-edit-form";
 import { PageHeader } from "@/components/ui";
 import { requirePermission } from "@/lib/auth";
@@ -29,6 +30,16 @@ export default async function EditStudentPage({ params }: PageProps<"/students/[
         status: true, phone: true, email: true, addressLine1: true,
         city: true, state: true, postalCode: true, previousSchool: true,
         medicalNotes: true, exitReason: true,
+        aadhaarNumber: true, apaarId: true, penNumber: true, udiseNumber: true,
+        boardRegNoIX: true, boardRegNoXI: true,
+        caste: true, isMinority: true, isBpl: true, isEws: true, isRteQuota: true,
+        isSingleParent: true, isSingleChild: true, isStaffWard: true,
+        isAlumniChild: true, hasDisability: true, disabilityType: true,
+        hasSpecialNeeds: true,
+        placeOfBirth: true, languageAtHome: true, house: true,
+        admissionFileNo: true, previousTcNumber: true, previousTcDate: true,
+        previousBoard: true,
+        heightCm: true, weightKg: true, allergies: true, chronicAilment: true,
         enrollments: {
           where: { isActive: true },
           take: 1,
@@ -79,6 +90,42 @@ export default async function EditStudentPage({ params }: PageProps<"/students/[
     previousSchool: student.previousSchool ?? "",
     medicalNotes: student.medicalNotes ?? "",
     exitReason: student.exitReason ?? "",
+
+    aadhaarNumber: student.aadhaarNumber ?? "",
+    apaarId: student.apaarId ?? "",
+    penNumber: student.penNumber ?? "",
+    udiseNumber: student.udiseNumber ?? "",
+    boardRegNoIX: student.boardRegNoIX ?? "",
+    boardRegNoXI: student.boardRegNoXI ?? "",
+
+    caste: student.caste ?? "",
+    disabilityType: student.disabilityType ?? "",
+
+    placeOfBirth: student.placeOfBirth ?? "",
+    languageAtHome: student.languageAtHome ?? "",
+    house: student.house ?? "",
+    admissionFileNo: student.admissionFileNo ?? "",
+    previousTcNumber: student.previousTcNumber ?? "",
+    previousTcDate: asDate(student.previousTcDate),
+    previousBoard: student.previousBoard ?? "",
+
+    heightCm: student.heightCm === null ? "" : String(student.heightCm),
+    weightKg: student.weightKg === null ? "" : String(student.weightKg),
+    allergies: student.allergies ?? "",
+    chronicAilment: student.chronicAilment ?? "",
+  };
+
+  const flags: StudentFlagDefaults = {
+    isMinority: student.isMinority,
+    isBpl: student.isBpl,
+    isEws: student.isEws,
+    isRteQuota: student.isRteQuota,
+    isSingleParent: student.isSingleParent,
+    isSingleChild: student.isSingleChild,
+    isStaffWard: student.isStaffWard,
+    isAlumniChild: student.isAlumniChild,
+    hasDisability: student.hasDisability,
+    hasSpecialNeeds: student.hasSpecialNeeds,
   };
 
   return (
@@ -94,6 +141,7 @@ export default async function EditStudentPage({ params }: PageProps<"/students/[
       />
       <StudentEditForm
         student={defaults}
+        flags={flags}
         currentClass={currentClass}
         sections={sections.map((s) => ({
           id: s.id,
