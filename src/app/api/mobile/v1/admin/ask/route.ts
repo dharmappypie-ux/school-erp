@@ -15,7 +15,7 @@ const Schema = z.object({ question: z.string() });
  * Gated on ai.query; rate-limited and logged per school/user inside the lib.
  */
 export async function POST(req: Request) {
-  const guard = await requireMobile(req, "ai.query");
+  const guard = await requireMobile(req, "ai.query", { feature: "ask_ai" });
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 

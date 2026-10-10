@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { requirePermission } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
+import { planAllowsAnotherStudent, studentCapMessage } from "@/lib/entitlements";
 import { nextAdmissionNumber } from "@/lib/admissions";
 import { hashPassword } from "@/lib/password";
 import { scopedDb } from "@/lib/tenant";
@@ -123,6 +124,11 @@ export async function createStudent(
       message: `${section.classLevel.name} ${section.name} is full (${section.capacity} seats).`,
       values: raw,
     };
+  }
+
+  const activeStudents = await db.student.count({ where: { deletedAt: null } });
+  if (!planAllowsAnotherStudent(session.school.plan, activeStudents)) {
+    return { ok: false, message: studentCapMessage(session.school.plan), values: raw };
   }
 
   // Admission numbers follow the school's own code so they match those already

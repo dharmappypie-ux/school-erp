@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { AddSchoolAdmin, SchoolAdminActions } from "@/app/(app)/platform/[schoolId]/admin-panels";
+import { AddSchoolAdmin, SchoolAdminActions, SchoolPlanControl } from "@/app/(app)/platform/[schoolId]/admin-panels";
 import { Avatar } from "@/components/avatar";
 import {
   Badge,
@@ -97,6 +97,8 @@ export default async function PlatformSchoolPage({
           tone={school.isActive ? "success" : "danger"}
         />
       </div>
+
+      <SchoolPlanControl schoolId={school.id} plan={school.plan} />
 
       <Card className="mt-4">
         <CardHeader

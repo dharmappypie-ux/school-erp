@@ -7,16 +7,94 @@ import {
   resetSchoolAdminPassword,
   setSchoolAdminRole,
   setSchoolAdminStatus,
+  setSchoolPlan,
 } from "@/app/(app)/platform/actions";
 import { DrawerForm } from "@/components/drawer-form";
 import { ManageForm } from "@/components/manage-form";
 import { SlideOver } from "@/components/slide-over";
-import { Alert, Button, Field, Select } from "@/components/ui";
+import { Alert, Badge, Button, Card, CardHeader, Field, Select } from "@/components/ui";
+import {
+  ALL_PLANS,
+  FEATURE_LABEL,
+  PLAN_LABEL,
+  featuresFor,
+  type Feature,
+} from "@/lib/entitlements";
+import { SubscriptionPlan } from "@/generated/prisma/enums";
 
 const ADMIN_ROLES = [
   { value: "SUPER_ADMIN", label: "Super Administrator" },
   { value: "ADMIN", label: "Administrator" },
 ];
+
+const GATED_FEATURES = Object.keys(FEATURE_LABEL) as Feature[];
+
+/** Platform-owner control to change a school's subscription plan. */
+export function SchoolPlanControl({
+  schoolId,
+  plan,
+}: {
+  schoolId: string;
+  plan: SubscriptionPlan;
+}) {
+  const [next, setNext] = useState<SubscriptionPlan>(plan);
+  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [pending, startTransition] = useTransition();
+  const unlocked = featuresFor(next);
+
+  return (
+    <Card className="mt-4">
+      <CardHeader
+        title="Subscription plan"
+        description="Gates this school's optional features"
+      />
+      <div className="space-y-4 px-5 py-4">
+        {result ? <Alert tone={result.ok ? "success" : "danger"}>{result.message}</Alert> : null}
+
+        <div className="flex flex-wrap items-end gap-3">
+          <Field label="Plan">
+            <Select value={next} onChange={(event) => setNext(event.target.value as SubscriptionPlan)}>
+              {ALL_PLANS.map((value) => (
+                <option key={value} value={value}>
+                  {PLAN_LABEL[value]}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Button
+            disabled={pending || next === plan}
+            onClick={() =>
+              startTransition(async () => setResult(await setSchoolPlan(schoolId, next)))
+            }
+          >
+            {pending ? "Saving…" : "Update plan"}
+          </Button>
+        </div>
+
+        <div>
+          <p className="mb-2 text-xs font-medium text-muted-strong">
+            Included on {PLAN_LABEL[next]}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {GATED_FEATURES.map((feature) => {
+              const on = unlocked.includes(feature);
+              return (
+                <Badge key={feature} tone={on ? "success" : "neutral"}>
+                  {on ? "✓ " : "— "}
+                  {FEATURE_LABEL[feature]}
+                </Badge>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-xs text-muted">
+            Core modules (students, staff, attendance, fees, exams, timetable,
+            notices, library, leave, inventory) are included on every plan.
+          </p>
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 export function AddSchoolAdmin({ schoolId }: { schoolId: string }) {
   return (

@@ -16,7 +16,7 @@ const Schema = z.object({
 
 /** POST /api/mobile/v1/admin/transport/stop — add a stop to a route. */
 export async function POST(req: Request) {
-  const guard = await requireMobile(req, "transport.manage");
+  const guard = await requireMobile(req, "transport.manage", { feature: "transport" });
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 

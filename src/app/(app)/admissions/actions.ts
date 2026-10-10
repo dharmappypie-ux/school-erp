@@ -149,6 +149,7 @@ export async function enrolApplicant(
     actorUserId: session.userId,
     applicationId: parsed.data.applicationId,
     sectionId: parsed.data.sectionId,
+    plan: session.school.plan,
   });
 
   if (result.ok) {

@@ -25,7 +25,7 @@ import {
   trend,
   type Trend,
 } from "@/lib/analytics";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, requireFeature } from "@/lib/auth";
 import { formatMoney, formatPercent, toNumber } from "@/lib/format";
 import { scopedDb } from "@/lib/tenant";
 
@@ -67,6 +67,7 @@ function TrendBadge({ value, invert }: { value: Trend; invert?: boolean }) {
 
 export default async function AnalyticsPage() {
   const session = await requirePermission("analytics.read");
+  await requireFeature("analytics");
   const db = scopedDb(session.schoolId);
   const yearId = session.academicYear?.id;
   const currency = session.school.currency;

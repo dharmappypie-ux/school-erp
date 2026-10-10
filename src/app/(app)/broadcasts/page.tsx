@@ -13,7 +13,7 @@ import {
   Th,
   type Tone,
 } from "@/components/ui";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, requireFeature } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format";
 import { env } from "@/lib/env";
 import { scopedDb } from "@/lib/tenant";
@@ -32,6 +32,7 @@ const STATUS_TONE: Record<string, Tone> = {
 
 export default async function BroadcastsPage() {
   const session = await requirePermission("notifications.send");
+  await requireFeature("broadcasts");
   const db = scopedDb(session.schoolId);
   const yearId = session.academicYear?.id;
 

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { recordAudit } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth";
+import { planAllowsAnotherStudent, studentCapMessage } from "@/lib/entitlements";
 import {
   buildPreview,
   parseCsv,
@@ -221,6 +222,16 @@ export async function commitImport(
       ok: false,
       message: "Some classes would go over capacity. Nothing has been imported.",
       issues: overfull,
+    };
+  }
+
+  // Plan student cap, counted across the whole file: a Trial school importing
+  // past its 50-student limit must fail before any row is written.
+  const existingStudents = await db.student.count({ where: { deletedAt: null } });
+  if (!planAllowsAnotherStudent(session.school.plan, existingStudents + rows.length - 1)) {
+    return {
+      ok: false,
+      message: `${studentCapMessage(session.school.plan)} This file would take you to ${existingStudents + rows.length}.`,
     };
   }
 

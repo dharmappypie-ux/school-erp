@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { nextAdmissionNumber } from "@/lib/admissions";
 import { recordAudit } from "@/lib/audit";
+import { planAllowsAnotherStudent, studentCapMessage } from "@/lib/entitlements";
 import { cors, requireMobile } from "@/lib/mobile-auth";
 import { hashPassword } from "@/lib/password";
 import { scopedDb } from "@/lib/tenant";
@@ -165,6 +166,11 @@ export async function POST(req: Request) {
       { error: `${section.classLevel.name} ${section.name} is full (${section.capacity} seats).` },
       { status: 409 },
     ));
+  }
+
+  const activeStudents = await db.student.count({ where: { deletedAt: null } });
+  if (!planAllowsAnotherStudent(session.plan, activeStudents)) {
+    return cors(NextResponse.json({ error: studentCapMessage(session.plan) }, { status: 409 }));
   }
 
   const prefix = `${(school.code || school.slug.slice(0, 3)).toUpperCase()}${new Date().getFullYear()}`;

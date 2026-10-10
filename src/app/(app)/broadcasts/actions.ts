@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, requireFeature } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import {
   measureMessage,
@@ -174,6 +174,7 @@ export async function previewBroadcast(
   }
 
   const session = await requirePermission("notifications.send");
+  await requireFeature("broadcasts");
   const db = scopedDb(session.schoolId);
   const { audience, channel, sectionId, body } = parsed.data;
 
@@ -223,6 +224,7 @@ export async function sendBroadcast(
   }
 
   const session = await requirePermission("notifications.send");
+  await requireFeature("broadcasts");
   const db = scopedDb(session.schoolId);
   const { audience, channel, sectionId, subject, body } = parsed.data;
 

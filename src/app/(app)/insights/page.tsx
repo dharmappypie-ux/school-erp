@@ -13,7 +13,7 @@ import {
   StatTile,
   type Tone,
 } from "@/components/ui";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, requireFeature } from "@/lib/auth";
 import { formatDateTime, toNumber } from "@/lib/format";
 import { scopedDb } from "@/lib/tenant";
 import type { RiskFactor } from "@/lib/ai/risk";
@@ -31,6 +31,7 @@ export default async function InsightsPage({
   searchParams,
 }: PageProps<"/insights">) {
   const session = await requirePermission("ai.insights");
+  await requireFeature("ai_insights");
   const db = scopedDb(session.schoolId);
   const params = await searchParams;
   const yearId = session.academicYear?.id;
