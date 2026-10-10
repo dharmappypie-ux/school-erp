@@ -9,7 +9,7 @@ export { OPTIONS } from "@/lib/mobile-auth";
 
 /** GET /api/mobile/v1/admin/quizzes — quizzes with status + question count. */
 export async function GET(req: Request) {
-  const guard = await requireMobile(req, ["quiz.manage", "quiz.publish", "quiz.read"]);
+  const guard = await requireMobile(req, ["quiz.manage", "quiz.publish", "quiz.read"], { feature: "lms" });
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 
@@ -40,7 +40,7 @@ const Schema = z.object({
 
 /** POST /api/mobile/v1/admin/quizzes — create a draft quiz. */
 export async function POST(req: Request) {
-  const guard = await requireMobile(req, "quiz.manage");
+  const guard = await requireMobile(req, "quiz.manage", { feature: "lms" });
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 

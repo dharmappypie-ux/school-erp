@@ -49,6 +49,7 @@ export async function POST(req: Request) {
     actorUserId: session.userId,
     applicationId: parsed.data.applicationId,
     sectionId: parsed.data.sectionId,
+    plan: session.plan,
   });
 
   return cors(NextResponse.json(result, { status: result.ok ? 200 : 400 }));

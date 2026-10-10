@@ -15,7 +15,7 @@ const Schema = z.object({
 
 /** POST /api/mobile/v1/admin/hostel/allocate — give a student a bed. */
 export async function POST(req: Request) {
-  const guard = await requireMobile(req, "hostel.manage");
+  const guard = await requireMobile(req, "hostel.manage", { feature: "hostel" });
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 

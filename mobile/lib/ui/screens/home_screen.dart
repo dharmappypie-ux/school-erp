@@ -140,14 +140,16 @@ class HomeScreen extends ConsumerWidget {
                     subtitle: dueCount == 0 ? 'All caught up' : '$dueCount due this week',
                     onTap: () => _open(context, const HomeworkScreen())),
                 const Hairline(),
-                RowTile(
-                    icon: Icons.play_lesson_outlined,
-                    iconBg: AppColors.goodSoft,
-                    iconColor: AppColors.good,
-                    title: 'Courses & quizzes',
-                    subtitle: 'Keep the streak going',
-                    onTap: () => _open(context, const CoursesScreen())),
-                const Hairline(),
+                if (ref.watch(authProvider).allowsFeature('lms')) ...[
+                  RowTile(
+                      icon: Icons.play_lesson_outlined,
+                      iconBg: AppColors.goodSoft,
+                      iconColor: AppColors.good,
+                      title: 'Courses & quizzes',
+                      subtitle: 'Keep the streak going',
+                      onTap: () => _open(context, const CoursesScreen())),
+                  const Hairline(),
+                ],
                 RowTile(
                     icon: Icons.apps_rounded,
                     iconBg: AppColors.accentSoft,

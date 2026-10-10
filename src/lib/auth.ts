@@ -4,6 +4,8 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/db";
+import { hasFeature, type Feature } from "@/lib/entitlements";
+import { SubscriptionPlan } from "@/generated/prisma/enums";
 import { hashSessionToken, readSessionToken } from "@/lib/session";
 import {
   hasAnyPermission,
@@ -38,6 +40,8 @@ export interface SessionContext {
     currency: string;
     timezone: string;
     settings: unknown;
+    /** Commercial tier — gates optional features via `@/lib/entitlements`. */
+    plan: SubscriptionPlan;
   };
 
   /** Current academic year for this school, if one is marked current. */
@@ -114,6 +118,7 @@ export const getSessionContext = cache(
         currency: user.school.currency,
         timezone: user.school.timezone,
         settings: user.school.settings,
+        plan: user.school.plan,
       },
       academicYear,
       studentId: user.student?.id ?? null,
@@ -181,6 +186,26 @@ export async function can(
 ): Promise<boolean> {
   const context = await getSessionContext();
   return context ? hasPermission(context.permissions, permission) : false;
+}
+
+/**
+ * Session context, guaranteed to be on a plan that includes `feature`, or a
+ * redirect to the upgrade page. This is the plan-tier counterpart to
+ * `requirePermission`: a user may hold the permission to use a module yet be on
+ * a plan that does not include it. Gated pages call both.
+ */
+export async function requireFeature(feature: Feature): Promise<SessionContext> {
+  const context = await requireAuth();
+  if (!hasFeature(context.school.plan, feature)) {
+    redirect(`/upgrade?feature=${encodeURIComponent(feature)}`);
+  }
+  return context;
+}
+
+/** Non-redirecting check: is the current school's plan allowed to use `feature`? */
+export async function canUseFeature(feature: Feature): Promise<boolean> {
+  const context = await getSessionContext();
+  return context ? hasFeature(context.school.plan, feature) : false;
 }
 
 /**

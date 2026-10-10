@@ -9,7 +9,7 @@ import {
   PageHeader,
   StatTile,
 } from "@/components/ui";
-import { requireAnyPermission } from "@/lib/auth";
+import { requireAnyPermission, requireFeature } from "@/lib/auth";
 import { COURSE_STATUS_LABEL, COURSE_STATUS_TONE, totalDuration } from "@/lib/lms";
 import { hasPermission } from "@/lib/permissions";
 import { scopedDb } from "@/lib/tenant";
@@ -18,6 +18,7 @@ export const metadata = { title: "Courses" };
 
 export default async function CoursesPage() {
   const session = await requireAnyPermission(["lms.read", "lms.manage"]);
+  await requireFeature("lms");
   const db = scopedDb(session.schoolId);
 
   const [courses, classLevels, subjects, teachers] = await Promise.all([

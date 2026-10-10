@@ -22,7 +22,7 @@ const Schema = z.object({
  * options must be at least two and distinct. Gated on quiz.manage.
  */
 export async function POST(req: Request) {
-  const guard = await requireMobile(req, "quiz.manage");
+  const guard = await requireMobile(req, "quiz.manage", { feature: "lms" });
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 

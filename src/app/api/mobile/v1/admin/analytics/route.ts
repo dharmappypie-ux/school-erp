@@ -24,7 +24,7 @@ const GRADE_BANDS = [
  * Mirror of the web /analytics page, reusing the shared lib/analytics helpers.
  */
 export async function GET(req: Request) {
-  const guard = await requireMobile(req, ["analytics.read"]);
+  const guard = await requireMobile(req, ["analytics.read"], { feature: "analytics" });
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 

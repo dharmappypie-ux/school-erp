@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, requireFeature } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { refreshRiskScores } from "@/lib/ai/risk";
 
@@ -13,6 +13,7 @@ export interface RefreshResult {
 
 export async function refreshInsights(): Promise<RefreshResult> {
   const session = await requirePermission("ai.insights");
+  await requireFeature("ai_insights");
   if (!session.academicYear) {
     return { ok: false, message: "Set a current academic year first." };
   }

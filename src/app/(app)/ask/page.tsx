@@ -1,6 +1,6 @@
 import { AskPanel } from "@/app/(app)/ask/ask-panel";
 import { Card, CardHeader, EmptyState, PageHeader, Table, Td, Th } from "@/components/ui";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, requireFeature } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { formatDateTime } from "@/lib/format";
 import { scopedDb } from "@/lib/tenant";
@@ -9,6 +9,7 @@ export const metadata = { title: "Ask your data" };
 
 export default async function AskPage() {
   const session = await requirePermission("ai.query");
+  await requireFeature("ask_ai");
   const db = scopedDb(session.schoolId);
 
   const recent = await db.aiQueryLog.findMany({

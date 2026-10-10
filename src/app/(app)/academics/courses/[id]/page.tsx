@@ -15,7 +15,7 @@ import {
   EmptyState,
   PageHeader,
 } from "@/components/ui";
-import { requireAnyPermission } from "@/lib/auth";
+import { requireAnyPermission, requireFeature } from "@/lib/auth";
 import {
   COURSE_STATUS_LABEL,
   COURSE_STATUS_TONE,
@@ -32,6 +32,7 @@ export default async function CourseDetailPage({
   params,
 }: PageProps<"/academics/courses/[id]">) {
   const session = await requireAnyPermission(["lms.read", "lms.manage"]);
+  await requireFeature("lms");
   const { id } = await params;
   const db = scopedDb(session.schoolId);
 

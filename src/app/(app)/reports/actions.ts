@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, requireFeature } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { hasPermission } from "@/lib/permissions";
 import {
@@ -67,6 +67,7 @@ export async function runReport(
   }
 
   const session = await requirePermission("reports.build");
+  await requireFeature("reports");
   const compiled = compileReport(parsed.data as ReportDefinition);
   if (!compiled.ok) {
     return { ok: false, message: compiled.errors.join(" ") };
@@ -162,6 +163,7 @@ export async function saveReport(
   }
 
   const session = await requirePermission("reports.build");
+  await requireFeature("reports");
   const compiled = compileReport(parsed.data.definition as ReportDefinition);
   if (!compiled.ok) {
     return { ok: false, message: `Cannot save an invalid report: ${compiled.errors.join(" ")}` };
@@ -200,6 +202,7 @@ export async function saveReport(
 /** Deletes a saved report the caller owns. */
 export async function deleteReport(id: string): Promise<SaveResult> {
   const session = await requirePermission("reports.build");
+  await requireFeature("reports");
   const db = scopedDb(session.schoolId);
 
   const report = await db.savedReport.findUnique({
@@ -233,6 +236,7 @@ export async function loadReport(
   id: string,
 ): Promise<{ ok: boolean; message: string; definition?: ReportDefinition }> {
   const session = await requirePermission("reports.build");
+  await requireFeature("reports");
   const db = scopedDb(session.schoolId);
 
   const report = await db.savedReport.findUnique({

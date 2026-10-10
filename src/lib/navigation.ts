@@ -1,3 +1,5 @@
+import { hasFeature, type Feature } from "@/lib/entitlements";
+import { SubscriptionPlan } from "@/generated/prisma/enums";
 import { hasAnyPermission } from "@/lib/permissions";
 
 export interface NavItem {
@@ -8,6 +10,11 @@ export interface NavItem {
   icon: string;
   /** Match child routes too (default true). */
   exact?: boolean;
+  /**
+   * Gated behind a subscription plan. When set, the item is hidden unless the
+   * school's plan includes the feature — regardless of permission.
+   */
+  feature?: Feature;
 }
 
 export interface NavGroup {
@@ -238,12 +245,14 @@ export const NAV_GROUPS: NavGroup[] = [
         href: "/academics/courses",
         permissions: ["lms.read"],
         icon: "courses",
+        feature: "lms",
       },
       {
         label: "Quizzes",
         href: "/quizzes",
         permissions: ["quiz.read"],
         icon: "quiz",
+        feature: "lms",
       },
     ],
   },
@@ -278,6 +287,7 @@ export const NAV_GROUPS: NavGroup[] = [
         href: "/transport",
         permissions: ["transport.read"],
         icon: "transport",
+        feature: "transport",
       },
       {
         label: "Library",
@@ -290,6 +300,7 @@ export const NAV_GROUPS: NavGroup[] = [
         href: "/hostel",
         permissions: ["hostel.read"],
         icon: "hostel",
+        feature: "hostel",
       },
       {
         label: "Inventory",
@@ -332,6 +343,7 @@ export const NAV_GROUPS: NavGroup[] = [
         href: "/broadcasts",
         permissions: ["notifications.send"],
         icon: "comms",
+        feature: "broadcasts",
       },
     ],
   },
@@ -343,18 +355,21 @@ export const NAV_GROUPS: NavGroup[] = [
         href: "/analytics",
         permissions: ["analytics.read"],
         icon: "analytics",
+        feature: "analytics",
       },
       {
         label: "AI insights",
         href: "/insights",
         permissions: ["ai.insights"],
         icon: "ai",
+        feature: "ai_insights",
       },
       {
         label: "Ask your data",
         href: "/ask",
         permissions: ["ai.query"],
         icon: "ai",
+        feature: "ask_ai",
       },
       {
         label: "Reports",
@@ -362,6 +377,7 @@ export const NAV_GROUPS: NavGroup[] = [
         permissions: ["reports.build"],
         icon: "analytics",
         exact: true,
+        feature: "reports",
       },
       {
         label: "Siblings",
@@ -434,6 +450,12 @@ export function visibleNavigation(
    * the portal tree would lead them to an empty state.
    */
   hasPortalRecord = false,
+  /**
+   * The school's subscription plan. Items tagged with a `feature` are hidden
+   * unless the plan includes it. Defaults to ENTERPRISE (everything visible) so
+   * a missing plan never hides a module by accident.
+   */
+  plan: SubscriptionPlan = "ENTERPRISE",
 ): NavGroup[] {
   // A pure platform owner is not a school staff user — they see only the
   // Platform group, never a school's dashboard or modules.
@@ -456,11 +478,12 @@ export function visibleNavigation(
     groups.push(
       ...NAV_GROUPS.map((group) => ({
         label: group.label,
-        items: group.items.filter((item) =>
-          item.permissions.length === 0
+        items: group.items.filter((item) => {
+          if (item.feature && !hasFeature(plan, item.feature)) return false;
+          return item.permissions.length === 0
             ? true
-            : hasAnyPermission(permissions, item.permissions),
-        ),
+            : hasAnyPermission(permissions, item.permissions);
+        }),
       })),
     );
   }
