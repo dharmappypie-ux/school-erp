@@ -101,24 +101,44 @@ class ApiClient {
     }
   }
 
-  /// Returns the login response `{token, user:{..., roles:[...]}}` on success,
-  /// or null if auth is unavailable/incorrect (the app then falls back to a
-  /// local offline session).
-  Future<Map<String, dynamic>?> login(String email, String password) async {
+  /// Signs in, returning `{token, user:{..., roles:[...]}, mustChangePassword}`
+  /// as [body] on success.
+  ///
+  /// A refusal the server actually sent comes back as [error]. It must not be
+  /// confused with being offline: the caller falls back to a local session when
+  /// it cannot reach a server, and treating a wrong password that way would
+  /// report a typo as a successful sign-in and then show this device's local
+  /// data as though it were that account's. Only a request that never landed
+  /// leaves both fields null.
+  Future<({Map<String, dynamic>? body, String? error})> login(
+      String email, String password) async {
     try {
       final res = await _dio.post(
         '/api/mobile/v1/auth/login',
         data: {'email': email, 'password': password},
         options: _auth,
       );
-      if (res.statusCode == 200 && res.data is Map) {
-        return Map<String, dynamic>.from(res.data as Map);
+      final body =
+          res.data is Map ? Map<String, dynamic>.from(res.data as Map) : null;
+      if (res.statusCode == 200 && body != null) {
+        return (body: body, error: null);
       }
-      return null;
-    } on DioException {
-      return null;
+      return (
+        body: null,
+        error: body?['error'] as String? ?? 'Could not sign you in.',
+      );
+    } on DioException catch (e) {
+      if (e.response == null) return (body: null, error: null); // never landed
+      final errBody = e.response!.data is Map
+          ? Map<String, dynamic>.from(e.response!.data as Map)
+          : null;
+      return (
+        body: null,
+        error: errBody?['error'] as String? ??
+            'The server could not sign you in just now.',
+      );
     } catch (_) {
-      return null;
+      return (body: null, error: null);
     }
   }
 
@@ -130,6 +150,16 @@ class ApiClient {
   /// refusal: offline there is nothing the user can do but find a connection.
   Future<({bool ok, String? message})> changePassword(
       String currentPassword, String newPassword) async {
+    // An offline session holds a 'local-' token that is never sent, so the
+    // server would answer a bare 401 and the screen would show the word
+    // "Unauthorized" to someone whose only problem is having no signal.
+    if (_token == null) {
+      return (
+        ok: false,
+        message: 'You are signed in offline on this device. Connect to the '
+            'internet and sign in again to change your password.',
+      );
+    }
     try {
       final res = await _dio.post(
         '/api/mobile/v1/auth/change-password',

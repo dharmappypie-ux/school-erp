@@ -78,13 +78,8 @@ class AuthController extends ChangeNotifier {
   /// Called once the server has accepted a new password. It revoked every
   /// session in the process — including this one — so the only correct next
   /// step is a fresh sign-in, which also proves the new password works.
-  Future<void> completePasswordChange(String message) async {
-    // Set first: signOut() notifies, which builds the login screen, which
-    // reads the notice in its initState. Setting it afterwards would be too
-    // late for that build and the message would never be seen.
-    _notice = message;
-    await signOut();
-  }
+  Future<void> completePasswordChange(String message) =>
+      signOut(notice: message);
 
   Future<void> restore() async {
     _token = await _storage.read(key: _tokenKey);
@@ -103,7 +98,11 @@ class AuthController extends ChangeNotifier {
     if (email.trim().isEmpty || password.isEmpty) {
       return 'Enter your email and password.';
     }
-    final res = await _api.login(email.trim(), password);
+    final result = await _api.login(email.trim(), password);
+    // The server answered, and the answer was no. Falling through to the
+    // offline session here would call a wrong password a successful sign-in.
+    if (result.error != null) return result.error;
+    final res = result.body;
 
     String? serverToken;
     UserRole? serverRole;
@@ -145,7 +144,11 @@ class AuthController extends ChangeNotifier {
     return UserRole.parent;
   }
 
-  Future<void> signOut() async {
+  /// [notice] is the one-shot message for the login screen. It is set as part
+  /// of signing out rather than before it, so the notify that builds the login
+  /// screen already carries it — and so an ordinary sign-out clears any stale
+  /// notice instead of letting it surface on an unrelated later visit.
+  Future<void> signOut({String? notice}) async {
     _token = null;
     _role = UserRole.parent;
     _name = null;
@@ -155,6 +158,7 @@ class AuthController extends ChangeNotifier {
     await _storage.delete(key: _roleKey);
     await _storage.delete(key: _nameKey);
     await _storage.delete(key: _mustChangeKey);
+    _notice = notice;
     notifyListeners();
   }
 }

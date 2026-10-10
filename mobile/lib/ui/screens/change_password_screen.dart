@@ -81,8 +81,11 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
         _busy = false;
         // A null message means the request never reached the server — nothing
         // about the password was wrong, so saying so would be a lie.
+        // The request may have been accepted and only the answer lost, so
+        // "nothing happened" would be a guess. Say what to do either way.
         _error = res.message ??
-            'Could not reach the school server. Check your connection and try again.';
+            'Could not reach the school server. Try again — and if the change '
+            'did go through, sign in with your new password.';
       });
       return;
     }
@@ -165,15 +168,19 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                       child: const Icon(Icons.lock_reset_rounded, color: Colors.white, size: 26),
                     ),
                     const SizedBox(height: 18),
+                    // Deliberately true in both cases: a new joiner opening the
+                    // app for the first time, and someone signed in for months
+                    // whose password an admin has just reset. Greeting the
+                    // second one with "Welcome" would be nonsense.
                     Text(
-                      name == null ? 'Choose a password' : 'Welcome, $name',
+                      name == null ? 'Choose a new password' : '$name, choose a new password',
                       style: const TextStyle(
                           color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Your school gave you a temporary password. Pick your own '
-                      'to start using the app.',
+                      'This account is on a temporary password. Pick your own to '
+                      'use the app — ask the school office if you were not given one.',
                       style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 13.5,
@@ -326,14 +333,19 @@ class _PasswordFieldState extends State<_PasswordField> {
               hintText: widget.hint,
               hintStyle: const TextStyle(color: AppColors.faint, fontWeight: FontWeight.w500, fontSize: 14),
               prefixIcon: Icon(widget.icon, color: AppColors.muted, size: 19),
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                  color: AppColors.muted,
-                  size: 19,
+              // Excluded from traversal: otherwise the keyboard's "next" lands
+              // on this button instead of the following field, which dismisses
+              // the keyboard and looks like the form has stopped responding.
+              suffixIcon: ExcludeFocus(
+                child: IconButton(
+                  icon: Icon(
+                    _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                    color: AppColors.muted,
+                    size: 19,
+                  ),
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                  tooltip: _obscure ? 'Show' : 'Hide',
                 ),
-                onPressed: () => setState(() => _obscure = !_obscure),
-                tooltip: _obscure ? 'Show' : 'Hide',
               ),
               border: InputBorder.none,
               enabledBorder: InputBorder.none,

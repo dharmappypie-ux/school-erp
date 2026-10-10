@@ -13,11 +13,32 @@ import 'ui/teacher/teacher_shell.dart';
 class VidyalayaApp extends ConsumerWidget {
   const VidyalayaApp({super.key});
 
+  /// The root navigator, so losing the session can clear what is on top of it.
+  ///
+  /// Swapping [MaterialApp.home] only replaces the '/' route. Every detail
+  /// screen in this app is pushed onto this same navigator (there is no nested
+  /// one), so without this the gate — or the login screen — is installed
+  /// invisibly *underneath* whatever the user is looking at. That is the normal
+  /// case rather than the odd one: the 403 that raises the gate mid-session is
+  /// the answer to a request a freshly-pushed screen just made.
+  static final navigatorKey = GlobalKey<NavigatorState>();
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
+
+    // No session, or a session the server refuses: nothing pushed may outlive
+    // it. Scheduled after the frame because the navigator cannot be mutated
+    // during a build, and a no-op when the stack is already at its root.
+    if (auth.ready && (!auth.isAuthenticated || auth.mustChangePassword)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        navigatorKey.currentState?.popUntil((route) => route.isFirst);
+      });
+    }
+
     return MaterialApp(
       title: 'Vidyalaya',
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       home: !auth.ready
