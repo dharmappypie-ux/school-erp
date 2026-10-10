@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
-import { cors, resolveMobileSession } from "@/lib/mobile-auth";
+import { cors, resolveMobileSession, passwordChangeRequired }
+  from "@/lib/mobile-auth";
 import {
   countLeaveDays,
   formatLeaveSpan,
@@ -41,8 +42,10 @@ async function resolveChild(
 export async function GET(req: Request) {
   const session = await resolveMobileSession(req);
   if (!session) {
-    return cors(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
+  return cors(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
   }
+  // A temporary password blocks the API, exactly as it blocks the web app.
+  if (session.mustChangePassword) return passwordChangeRequired();
 
   const db = scopedDb(session.schoolId);
   const studentId = await resolveChild(db, session.studentId, session.guardianId);

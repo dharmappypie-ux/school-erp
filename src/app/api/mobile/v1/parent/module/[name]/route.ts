@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { toNumber } from "@/lib/format";
-import { cors, resolveMobileSession } from "@/lib/mobile-auth";
+import {
+  cors,
+  passwordChangeRequired,
+  resolveMobileSession,
+} from "@/lib/mobile-auth";
 import { scopedDb, type ScopedDb } from "@/lib/tenant";
 
 export { OPTIONS } from "@/lib/mobile-auth";
@@ -37,6 +41,8 @@ const TITLES: Record<string, string> = {
 export async function GET(req: Request, ctx: { params: Promise<{ name: string }> }) {
   const session = await resolveMobileSession(req);
   if (!session) return cors(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
+  // A temporary password blocks the API, exactly as it blocks the web app.
+  if (session.mustChangePassword) return passwordChangeRequired();
 
   const { name } = await ctx.params;
   const db = scopedDb(session.schoolId);

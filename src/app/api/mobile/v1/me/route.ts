@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { cors, resolveMobileSession } from "@/lib/mobile-auth";
+import { cors, resolveMobileSession, passwordChangeRequired }
+  from "@/lib/mobile-auth";
 
 export { OPTIONS } from "@/lib/mobile-auth";
 
@@ -15,8 +16,10 @@ export { OPTIONS } from "@/lib/mobile-auth";
 export async function GET(req: Request) {
   const session = await resolveMobileSession(req);
   if (!session) {
-    return cors(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
+  return cors(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
   }
+  // A temporary password blocks the API, exactly as it blocks the web app.
+  if (session.mustChangePassword) return passwordChangeRequired();
   return cors(NextResponse.json({
     userId: session.userId,
     name: session.name,
