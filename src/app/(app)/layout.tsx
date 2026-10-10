@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+
 import { AppShell } from "@/components/app-shell";
 import { accountSummary } from "@/lib/account";
 import { requireAuth } from "@/lib/auth";
@@ -7,6 +9,13 @@ import { ROLE_PRESET_BY_KEY } from "@/lib/permissions";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const session = await requireAuth();
+
+  // An account handed out with a temporary password must replace it before it
+  // can be used. Enforced here rather than only at login: the login redirect
+  // alone is one click to step around, so until today every temporary password
+  // stayed in use for good. /change-password lives in the (auth) group, outside
+  // this layout, so this cannot loop.
+  if (session.mustChangePassword) redirect("/change-password");
 
   const navigation = visibleNavigation(
     session.permissions,
