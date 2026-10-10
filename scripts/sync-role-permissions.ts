@@ -14,8 +14,13 @@
  * bulk script run from a terminal.
  *
  * Usage:
- *   npm run sync:roles           # report what would change, write nothing
- *   npm run sync:roles -- --apply
+ *   npm run sync:roles                                  # dry run, writes nothing
+ *   DATABASE_URL="postgresql://…" npm run sync:roles    # dry run elsewhere
+ *   DATABASE_URL="postgresql://…" npm run sync:roles -- --apply
+ *
+ * --apply refuses to run unless DATABASE_URL is set, because env.databaseUrl
+ * falls back to the local dev database and a silent no-op against localhost
+ * looks identical to a successful production sync.
  */
 
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -25,6 +30,46 @@ import { env } from "../src/lib/env";
 import { ROLE_PRESET_BY_KEY } from "../src/lib/permissions";
 
 const apply = process.argv.includes("--apply");
+
+/**
+ * Where this run will actually write, with the credentials stripped.
+ *
+ * `env.databaseUrl` silently falls back to the local dev database when
+ * DATABASE_URL is unset, so `npm run sync:roles -- --apply` run from a laptop
+ * reports a tidy "0 updated · all current" against localhost and touches
+ * production not at all. That reads exactly like success. Naming the host on
+ * every run makes the no-op visible.
+ */
+function describeTarget(url: string): string {
+  try {
+    const parsed = new URL(url);
+    const db = parsed.pathname.replace(/^\//, "") || "(default)";
+    return `${parsed.hostname}:${parsed.port || "5432"}/${db}`;
+  } catch {
+    return "(unparseable DATABASE_URL)";
+  }
+}
+
+const explicitUrl = Boolean(process.env.DATABASE_URL);
+const target = describeTarget(env.databaseUrl);
+
+console.log(
+  `Target: ${target}${explicitUrl ? "" : "  (DATABASE_URL unset — local dev fallback)"}\n`,
+);
+
+// Writing is refused unless the caller said which database they meant. A dry
+// run against the fallback is harmless and still useful, so only --apply is
+// gated.
+if (apply && !explicitUrl) {
+  console.error(
+    "Refusing to --apply without DATABASE_URL set.\n\n" +
+      `This would write to ${target}, the local dev fallback, not the database\n` +
+      "you probably meant. Say which one explicitly:\n\n" +
+      '  DATABASE_URL="postgresql://…" npm run sync:roles -- --apply\n\n' +
+      "or put it in .env.local, which prisma.config.ts already loads.",
+  );
+  process.exit(1);
+}
 
 const adapter = new PrismaPg({ connectionString: env.databaseUrl, max: 3 });
 const prisma = new PrismaClient({ adapter });
