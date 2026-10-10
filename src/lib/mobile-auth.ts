@@ -50,6 +50,29 @@ export interface MobileSession {
   academicYearId: string | null;
   roleKeys: string[];
   permissions: string[];
+  /**
+   * The account still holds the temporary password it was created with. The web
+   * app blocks every page until it is replaced; the mobile API must refuse the
+   * same way, or the app is simply the way around that.
+   */
+  mustChangePassword: boolean;
+}
+
+/**
+ * Returned instead of data while a temporary password is still in force.
+ * The client keys on `code` to send the user to its change-password screen
+ * rather than showing an unexplained permission error.
+ */
+export function passwordChangeRequired(): NextResponse {
+  return cors(
+    NextResponse.json(
+      {
+        error: "Change your password before using the app.",
+        code: "PASSWORD_CHANGE_REQUIRED",
+      },
+      { status: 403 },
+    ),
+  );
 }
 
 /**
@@ -68,6 +91,11 @@ export async function requireMobile(
   if (!session) {
     return cors(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
   }
+  // Enforced here rather than in the client, so a crafted request cannot skip
+  // it either. The change-password route resolves the session directly and is
+  // therefore exempt — otherwise there would be no way out.
+  if (session.mustChangePassword) return passwordChangeRequired();
+
   const needed = Array.isArray(anyOf) ? anyOf : [anyOf];
   // No permission requested → any valid session is enough (child-scoped routes).
   if (needed.length === 0) return session;
@@ -130,5 +158,6 @@ export async function resolveMobileSession(
     academicYearId: year?.id ?? null,
     roleKeys: user.roles.map((r) => r.key),
     permissions: [...new Set(user.roles.flatMap((r) => r.permissions))],
+    mustChangePassword: user.mustChangePassword,
   };
 }

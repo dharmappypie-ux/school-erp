@@ -72,6 +72,11 @@ export async function POST(req: Request) {
     return cors(NextResponse.json({
       token,
       expiresAt: expiresAt.toISOString(),
+      // The token is real, but every other endpoint refuses it until the
+      // temporary password is replaced. Told here so the app can go straight to
+      // its change-password screen instead of discovering it as a 403 on the
+      // first thing the user taps.
+      mustChangePassword: user.mustChangePassword,
       user: {
         id: user.id,
         name: `${user.firstName} ${user.lastName ?? ""}`.trim(),
