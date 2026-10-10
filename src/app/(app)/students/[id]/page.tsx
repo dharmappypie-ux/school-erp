@@ -25,6 +25,7 @@ import {
   formatPercent,
   toNumber,
 } from "@/lib/format";
+import { siblingsFor } from "@/lib/siblings";
 import { scopedDb } from "@/lib/tenant";
 
 export const metadata = { title: "Student profile" };
@@ -62,14 +63,6 @@ export default async function StudentProfilePage({
     where: { id },
     include: {
       guardians: { include: { guardian: true } },
-      siblings: {
-        orderBy: [{ dateOfBirth: "asc" }, { name: "asc" }],
-        include: {
-          siblingStudent: {
-            select: { id: true, admissionNo: true, firstName: true, lastName: true },
-          },
-        },
-      },
       enrollments: {
         orderBy: { enrolledOn: "desc" },
         include: {
@@ -105,6 +98,10 @@ export default async function StudentProfilePage({
   });
 
   if (!student) notFound();
+
+  // Both directions: a sibling who named this student counts just as much as one
+  // this student named.
+  const siblings = await siblingsFor(db, student.id);
 
   const [attendanceGroups, invoiceTotals, invoices, marks, bookIssues, payments, reportCards] =
     await Promise.all([
@@ -332,23 +329,22 @@ export default async function StudentProfilePage({
             title="Siblings"
             description="Named by the family — edit on the student's edit page"
           />
-          {student.siblings.length === 0 ? (
+          {siblings.length === 0 ? (
             <EmptyState title="No siblings recorded" />
           ) : (
             <ul className="divide-y divide-border">
-              {student.siblings.map((sibling) => (
+              {siblings.map((sibling) => (
                 <li key={sibling.id} className="px-5 py-3.5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       {/* A sibling on this roll links to their record; one
                           elsewhere is just a name the family gave us. */}
-                      {sibling.siblingStudent ? (
+                      {sibling.linked ? (
                         <Link
-                          href={`/students/${sibling.siblingStudent.id}`}
+                          href={`/students/${sibling.linked.id}`}
                           className="truncate text-sm font-medium underline-offset-2 hover:underline"
                         >
-                          {sibling.siblingStudent.firstName}{" "}
-                          {sibling.siblingStudent.lastName ?? ""}
+                          {sibling.name}
                         </Link>
                       ) : (
                         <p className="truncate text-sm font-medium">{sibling.name}</p>
@@ -359,15 +355,15 @@ export default async function StudentProfilePage({
                           ? ` · born ${formatDate(sibling.dateOfBirth)}`
                           : ""}
                       </p>
-                      {sibling.siblingStudent ? (
+                      {sibling.linked ? (
                         <p className="text-xs text-muted">
-                          {sibling.siblingStudent.admissionNo}
+                          {sibling.linked.admissionNo}
                         </p>
                       ) : sibling.schoolName ? (
                         <p className="text-xs text-muted">{sibling.schoolName}</p>
                       ) : null}
                     </div>
-                    {sibling.siblingStudent ? (
+                    {sibling.linked ? (
                       <Badge tone="brand">On this roll</Badge>
                     ) : null}
                   </div>

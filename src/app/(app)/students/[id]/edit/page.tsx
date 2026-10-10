@@ -13,6 +13,7 @@ import {
 import { PageHeader } from "@/components/ui";
 import { requirePermission } from "@/lib/auth";
 import { dateInputValue } from "@/lib/format";
+import { siblingsFor } from "@/lib/siblings";
 import { scopedDb } from "@/lib/tenant";
 
 export const metadata = { title: "Edit student" };
@@ -51,25 +52,6 @@ export default async function EditStudentPage({ params }: PageProps<"/students/[
           select: {
             section: {
               select: { name: true, classLevel: { select: { name: true } } },
-            },
-          },
-        },
-        siblings: {
-          orderBy: { createdAt: "asc" },
-          select: {
-            id: true,
-            name: true,
-            relation: true,
-            dateOfBirth: true,
-            schoolName: true,
-            notes: true,
-            siblingStudent: {
-              select: {
-                id: true,
-                admissionNo: true,
-                firstName: true,
-                lastName: true,
-              },
             },
           },
         },
@@ -186,21 +168,18 @@ export default async function EditStudentPage({ params }: PageProps<"/students/[
     hasSpecialNeeds: student.hasSpecialNeeds,
   };
 
-  const siblings: SiblingRow[] = student.siblings.map((sibling) => ({
-    id: sibling.id,
-    name: sibling.name,
-    relation: sibling.relation,
-    dateOfBirth: dateInputValue(sibling.dateOfBirth),
-    schoolName: sibling.schoolName ?? "",
-    notes: sibling.notes ?? "",
-    linkedStudent: sibling.siblingStudent
-      ? {
-          id: sibling.siblingStudent.id,
-          name: `${sibling.siblingStudent.firstName} ${sibling.siblingStudent.lastName ?? ""}`.trim(),
-          admissionNo: sibling.siblingStudent.admissionNo,
-        }
-      : null,
-  }));
+  const siblings: SiblingRow[] = (await siblingsFor(db, student.id)).map(
+    (sibling) => ({
+      id: sibling.id,
+      name: sibling.name,
+      relation: sibling.relation,
+      dateOfBirth: dateInputValue(sibling.dateOfBirth),
+      schoolName: sibling.schoolName ?? "",
+      notes: sibling.notes ?? "",
+      linkedStudent: sibling.linked,
+      editable: sibling.editable,
+    }),
+  );
 
   // Sorted by class, then section, then name, so the picker's class dropdown
   // reads I A, I B, II A … Prisma cannot order on a to-many relation's field,
