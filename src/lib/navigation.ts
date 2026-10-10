@@ -174,6 +174,12 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: "admissions",
       },
       {
+        label: "Import staff",
+        href: "/staff/import",
+        permissions: ["staff.create"],
+        icon: "staff",
+      },
+      {
         label: "Promotion",
         href: "/students/promote",
         permissions: ["students.update"],
