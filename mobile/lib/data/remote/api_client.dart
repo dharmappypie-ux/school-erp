@@ -29,6 +29,13 @@ class ApiClient {
   /// instead of showing permanently blank screens.
   void Function()? onUnauthorized;
 
+  /// Called when the server refuses a *valid* token because the account still
+  /// carries a temporary password. Unlike 401 this is not a dead session, so
+  /// the auth layer raises the change-password gate rather than signing out.
+  /// It can start mid-session: an admin resetting a password flags an account
+  /// that is already signed in on this device.
+  void Function()? onPasswordChangeRequired;
+
   void setToken(String? token) => _token = token;
 
   /// The backend origin, so screens can build absolute URLs for server-relative
@@ -47,10 +54,16 @@ class ApiClient {
         validateStatus: (s) => s != null && s < 500,
       );
 
-  /// Fire the stale-session hook when the server rejects a real token.
-  void _check(int? status) {
-    if (status == 401 && _token != null && !_token!.startsWith('local-')) {
+  /// Fire the session hooks when the server rejects a real token. A local
+  /// offline token is never sent, so nothing it comes back with means anything.
+  void _check(int? status, [Object? body]) {
+    if (_token == null || _token!.startsWith('local-')) return;
+    if (status == 401) {
       onUnauthorized?.call();
+    } else if (status == 403 &&
+        body is Map &&
+        body['code'] == 'PASSWORD_CHANGE_REQUIRED') {
+      onPasswordChangeRequired?.call();
     }
   }
 
@@ -60,7 +73,7 @@ class ApiClient {
   Future<ServerSnapshot?> pull() async {
     try {
       final res = await _dio.get('/api/mobile/v1/me/snapshot', options: _auth);
-      _check(res.statusCode);
+      _check(res.statusCode, res.data);
       if (res.statusCode != 200 || res.data is! Map) return null;
       return ServerSnapshot.fromJson(res.data as Map<String, dynamic>);
     } on DioException {
@@ -79,7 +92,7 @@ class ApiClient {
         data: {'kind': item.kind, 'entityId': item.entityId, 'payload': item.payload},
         options: _auth,
       );
-      _check(res.statusCode);
+      _check(res.statusCode, res.data);
       return res.statusCode == 200 || res.statusCode == 201;
     } on DioException {
       return false;
@@ -109,13 +122,54 @@ class ApiClient {
     }
   }
 
+  /// Replaces the signed-in user's password. The server revokes every session
+  /// on success — including this one — so the caller must sign out afterwards.
+  ///
+  /// Returns `(ok, message)`. A null [message] on failure means the server was
+  /// never reached, which the caller words differently from a server's own
+  /// refusal: offline there is nothing the user can do but find a connection.
+  Future<({bool ok, String? message})> changePassword(
+      String currentPassword, String newPassword) async {
+    try {
+      final res = await _dio.post(
+        '/api/mobile/v1/auth/change-password',
+        data: {'currentPassword': currentPassword, 'newPassword': newPassword},
+        options: _auth,
+      );
+      final body =
+          res.data is Map ? Map<String, dynamic>.from(res.data as Map) : null;
+      if (res.statusCode == 200 && body?['ok'] == true) {
+        return (ok: true, message: body?['message'] as String?);
+      }
+      // A 401 here is a genuinely dead session, not a wrong password — that
+      // comes back as 400. Let the stale-session hook bounce them to login.
+      _check(res.statusCode, res.data);
+      return (ok: false, message: body?['error'] as String?);
+    } on DioException catch (e) {
+      // No response at all means the request never landed — offline, and the
+      // caller says so. A 5xx did land (it escapes validateStatus as an
+      // exception) and is a server fault, which reads very differently.
+      if (e.response == null) return (ok: false, message: null);
+      final body = e.response!.data is Map
+          ? Map<String, dynamic>.from(e.response!.data as Map)
+          : null;
+      return (
+        ok: false,
+        message: body?['error'] as String? ??
+            'The server could not change the password just now.',
+      );
+    } catch (_) {
+      return (ok: false, message: null);
+    }
+  }
+
   // ---- generic authed helpers (teacher / admin surfaces) -----------------
 
   /// GET a JSON object from an authed endpoint. Returns null offline / on error.
   Future<Map<String, dynamic>?> getJson(String path, {Map<String, dynamic>? query}) async {
     try {
       final res = await _dio.get(path, queryParameters: query, options: _auth);
-      _check(res.statusCode);
+      _check(res.statusCode, res.data);
       if (res.statusCode == 200 && res.data is Map) {
         return Map<String, dynamic>.from(res.data as Map);
       }
@@ -131,7 +185,7 @@ class ApiClient {
       String path, Map<String, dynamic> data) async {
     try {
       final res = await _dio.post(path, data: data, options: _auth);
-      _check(res.statusCode);
+      _check(res.statusCode, res.data);
       final body = res.data is Map ? Map<String, dynamic>.from(res.data as Map) : null;
       final ok = res.statusCode == 200 || res.statusCode == 201;
       return (ok: ok, body: body);

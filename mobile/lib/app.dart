@@ -5,6 +5,7 @@ import 'data/models/models.dart';
 import 'state/providers.dart';
 import 'theme/app_theme.dart';
 import 'ui/admin/admin_shell.dart';
+import 'ui/screens/change_password_screen.dart';
 import 'ui/screens/login_screen.dart';
 import 'ui/shell/home_shell.dart';
 import 'ui/teacher/teacher_shell.dart';
@@ -23,6 +24,11 @@ class VidyalayaApp extends ConsumerWidget {
           ? const _Splash()
           : !auth.isAuthenticated
               ? const LoginScreen()
+              // Signed in, but the server refuses everything until the
+              // temporary password is replaced — so this IS the app until
+              // it is. Not a pushed route: there is nothing to go back to.
+              : auth.mustChangePassword
+              ? const ChangePasswordScreen(forced: true)
               : switch (auth.role) {
                   UserRole.admin => const AdminShell(),
                   UserRole.teacher => const TeacherShell(),

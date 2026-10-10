@@ -20,12 +20,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     UserRole.admin: 'admin@greenwood.edu.in',
   };
 
+  /// One-shot message from the auth layer — e.g. after a password change
+  /// signed every session out. Read once, in initState, because reading it
+  /// clears it.
+  String? _notice;
+
   UserRole _role = UserRole.parent;
   final _email = TextEditingController(text: _demo[UserRole.parent]);
   final _password = TextEditingController(text: 'Password123');
   bool _busy = false;
   bool _obscure = true;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _notice = ref.read(authProvider).takeNotice();
+  }
 
   void _pickRole(UserRole r) {
     setState(() {
@@ -70,6 +81,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 6),
                   const Text('Choose your role and sign in.',
                       style: TextStyle(fontSize: 14.5, color: AppColors.muted)),
+                  if (_notice != null) ...[
+                    const SizedBox(height: 18),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.goodSoft,
+                        borderRadius: BorderRadius.circular(AppRadius.chip),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.check_circle_outline_rounded,
+                              color: AppColors.good, size: 18),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(_notice!,
+                                style: const TextStyle(
+                                    fontSize: 13,
+                                    height: 1.35,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.good)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 22),
                   _RoleSelector(role: _role, onChanged: _pickRole),
                   const SizedBox(height: 18),

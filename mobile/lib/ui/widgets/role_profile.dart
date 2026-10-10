@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/sync/sync_service.dart';
 import '../../state/providers.dart';
 import '../../theme/app_theme.dart';
+import '../screens/change_password_screen.dart';
 import 'widgets.dart';
 
 /// A simple profile / account tab shared by the teacher and admin shells:
@@ -94,6 +95,18 @@ class RoleProfileScreen extends ConsumerWidget {
                 style: const TextStyle(fontSize: 12.5, color: AppColors.muted),
               ),
             ],
+          ),
+        ),
+        const SizedBox(height: 22),
+        const SectionLabel('Security'),
+        AppCard(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+          child: RowTile(
+            icon: Icons.lock_reset_rounded,
+            title: 'Change password',
+            subtitle: 'You will sign in again afterwards',
+            onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ChangePasswordScreen())),
           ),
         ),
         const SizedBox(height: 22),
