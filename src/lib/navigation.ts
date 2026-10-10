@@ -355,6 +355,15 @@ export const NAV_GROUPS: NavGroup[] = [
         href: "/reports",
         permissions: ["reports.build"],
         icon: "analytics",
+        exact: true,
+      },
+      {
+        label: "Siblings",
+        href: "/reports/siblings",
+        // Matches what the page enforces (students.read); the admissions half of
+        // it gates itself separately.
+        permissions: ["students.read"],
+        icon: "students",
       },
     ],
   },

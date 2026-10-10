@@ -73,6 +73,7 @@ export const TENANT_MODELS = new Set([
   "StudentLeaveRequest",
   "JobPosting",
   "JobApplication",
+  "StudentSibling",
 ]);
 
 const READ_OPERATIONS = new Set([
