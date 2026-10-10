@@ -22,6 +22,28 @@ export interface EnrolResult {
   admissionNo?: string;
 }
 
+const normaliseName = (value: string) =>
+  value.trim().replace(/\s+/g, " ").toLowerCase();
+
+/**
+ * Both readings of a student's name, because a parent writing a sibling's name
+ * on a form includes the middle name about half the time.
+ */
+function fullNames(student: {
+  firstName: string;
+  middleName: string | null;
+  lastName: string | null;
+}): string[] {
+  return [
+    normaliseName(
+      [student.firstName, student.middleName, student.lastName]
+        .filter(Boolean)
+        .join(" "),
+    ),
+    normaliseName([student.firstName, student.lastName].filter(Boolean).join(" ")),
+  ];
+}
+
 /**
  * Enrols an ACCEPTED admission applicant into a section: creates the student +
  * guardian logins, the StudentGuardian link and the active Enrollment, and marks
@@ -144,6 +166,59 @@ export async function enrolApplicant(input: EnrolInput): Promise<EnrolResult> {
           actorId: actorUserId,
         },
       });
+
+      // The siblings the family listed belong to the child, not to the
+      // paperwork. The rows move onto the new student and keep their
+      // applicationId, so the trail from application to student survives and
+      // nothing is duplicated.
+      const siblings = await tx.studentSibling.findMany({
+        where: { applicationId },
+        select: { id: true, name: true, schoolName: true },
+      });
+      for (const sibling of siblings) {
+        const parts = sibling.name.trim().split(/\s+/).filter(Boolean);
+        const candidates =
+          parts.length === 0
+            ? []
+            : await tx.student.findMany({
+                where: {
+                  deletedAt: null,
+                  status: "ACTIVE",
+                  id: { not: student.id },
+                  firstName: { equals: parts[0], mode: "insensitive" },
+                  ...(parts.length > 1
+                    ? {
+                        lastName: {
+                          equals: parts[parts.length - 1],
+                          mode: "insensitive",
+                        },
+                      }
+                    : {}),
+                },
+                select: { id: true, firstName: true, middleName: true, lastName: true },
+                take: 10,
+              });
+
+        const wanted = normaliseName(sibling.name);
+        const matches = candidates.filter((candidate) =>
+          fullNames(candidate).includes(wanted),
+        );
+
+        await tx.studentSibling.update({
+          where: { id: sibling.id },
+          data: {
+            studentId: student.id,
+            // Only an unambiguous single match, and only when the family did not
+            // already say the sibling studies elsewhere — that is them telling us
+            // the name match is a coincidence. Two children of the same name on
+            // the roll means we do not know which one this is, and a wrong link is
+            // worse than no link at all.
+            ...(matches.length === 1 && !sibling.schoolName
+              ? { siblingStudentId: matches[0].id }
+              : {}),
+          },
+        });
+      }
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import {
+  ApplicationSiblings,
+  type ApplicationSiblingRow,
+} from "@/app/(app)/admissions/[id]/application-siblings";
 import { DecisionPanel } from "@/app/(app)/admissions/[id]/decision-panel";
 import { STATUS_TONE } from "@/app/(app)/admissions/page";
 import {
@@ -13,7 +17,13 @@ import {
 } from "@/components/ui";
 import { requirePermission } from "@/lib/auth";
 import { APPLICATION_FLOW, STATUS_LABEL } from "@/lib/admissions";
-import { formatDate, formatDateTime, initials, toNumber } from "@/lib/format";
+import {
+  dateInputValue,
+  formatDate,
+  formatDateTime,
+  initials,
+  toNumber,
+} from "@/lib/format";
 import { hasPermission } from "@/lib/permissions";
 import { scopedDb } from "@/lib/tenant";
 
@@ -44,6 +54,7 @@ export default async function ApplicationPage({
       student: { select: { id: true, admissionNo: true } },
       documents: { orderBy: { createdAt: "desc" } },
       events: { orderBy: { createdAt: "desc" } },
+      siblings: { orderBy: { createdAt: "asc" } },
     },
   });
 
@@ -68,6 +79,16 @@ export default async function ApplicationPage({
   const canManage = hasPermission(session.permissions, "admissions.manage");
   const allowedNext = APPLICATION_FLOW[application.status].filter(
     (status) => status !== "ENROLLED",
+  );
+
+  const siblings: ApplicationSiblingRow[] = application.siblings.map(
+    (sibling) => ({
+      id: sibling.id,
+      name: sibling.name,
+      relation: sibling.relation,
+      dateOfBirth: dateInputValue(sibling.dateOfBirth),
+      schoolName: sibling.schoolName ?? "",
+    }),
   );
 
   return (
@@ -217,6 +238,15 @@ export default async function ApplicationPage({
             />
           </Card>
         ) : null}
+      </div>
+
+      <div className="mt-4">
+        <ApplicationSiblings
+          applicationId={application.id}
+          siblings={siblings}
+          canManage={canManage}
+          enrolled={application.student !== null}
+        />
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">

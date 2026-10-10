@@ -196,6 +196,14 @@ enum LeavePortion {
   SECOND_HALF
 }
 
+/// How a named sibling is related. Kept coarse on purpose: the family writes a
+/// name on an admission form, and anything finer invites guesses nobody checks.
+enum SiblingRelation {
+  BROTHER
+  SISTER
+  OTHER
+}
+
 enum JobApplicationStatus {
   RECEIVED
   SHORTLISTED
@@ -405,6 +413,7 @@ model School {
   inventoryCategories   InventoryCategory[]
   behaviourLogs         BehaviourLog[]
   studentLeaveRequests  StudentLeaveRequest[]
+  studentSiblings       StudentSibling[]
   jobPostings           JobPosting[]
   jobApplications       JobApplication[]
   inventoryItems        InventoryItem[]
@@ -840,6 +849,8 @@ model Student {
   admissionApplication AdmissionApplication?
   behaviourLogs        BehaviourLog[]
   leaveRequests        StudentLeaveRequest[]
+  siblings             StudentSibling[]      @relation("SiblingOf")
+  siblingOf            StudentSibling[]      @relation("SiblingLink")
 
   @@unique([schoolId, admissionNo])
   @@index([schoolId, status])
@@ -1085,6 +1096,7 @@ model AdmissionApplication {
 
   documents Document[]
   events    AdmissionEvent[]
+  siblings  StudentSibling[]
 
   @@unique([schoolId, applicationNo])
   @@index([schoolId, status])
@@ -3240,6 +3252,58 @@ model StudentLeaveRequest {
   @@index([studentId, fromDate])
   @@index([schoolId, fromDate])
   @@map("student_leave_requests")
+}
+
+/// A brother or sister named at admission.
+///
+/// Hangs off either an application or an enrolled student — the same nullable
+/// multi-parent shape `Document` uses — so what a parent writes on the
+/// admission form survives enrolment instead of being retyped.
+///
+/// Two deliberate departures from how most school systems store this:
+///
+/// `dateOfBirth`, not an age. An age is right for one day and wrong forever
+/// after; a sibling recorded as 7 is still 7 three years later and the sibling
+/// report quietly rots.
+///
+/// `siblingStudentId` links to the other child's record when they are also on
+/// this roll. That link is what makes a sibling discount, a shared-transport
+/// decision or a "keep them in the same section" request answerable; a bare
+/// name is not enough to act on.
+model StudentSibling {
+  id       String @id @default(cuid())
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  /// The enrolled student this sibling belongs to.
+  studentId String?
+  student   Student? @relation("SiblingOf", fields: [studentId], references: [id], onDelete: Cascade)
+
+  /// The applicant this sibling belongs to, before enrolment.
+  applicationId String?
+  application   AdmissionApplication? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  name        String
+  relation    SiblingRelation @default(OTHER)
+  dateOfBirth DateTime?       @db.Date
+
+  /// Where the sibling studies when that is not this school.
+  schoolName String?
+
+  /// Set when the sibling is themselves on this school's roll.
+  siblingStudentId String?
+  siblingStudent   Student? @relation("SiblingLink", fields: [siblingStudentId], references: [id], onDelete: SetNull)
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([applicationId])
+  @@index([siblingStudentId])
+  @@map("student_siblings")
 }
 
 model Upload {

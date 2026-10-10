@@ -58,6 +58,33 @@ export function formatDate(
   });
 }
 
+/**
+ * A `@db.Date` column is a calendar day, not an instant. Prisma hands it back
+ * as midnight UTC, so reading it in the viewer's zone shows the day before for
+ * anyone behind UTC — a date of birth typed as 2 April comes back as 1 April
+ * in New York. Reading it in UTC gives back the day that was typed.
+ */
+export function formatDateOnly(
+  value: Date | string | null | undefined,
+  locale = DEFAULT_LOCALE,
+): string {
+  if (!value) return "—";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString(locale, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+/** `yyyy-mm-dd` for an `<input type="date">`, read in UTC for the same reason. */
+export function dateInputValue(value: Date | null | undefined): string {
+  if (!value || Number.isNaN(value.getTime())) return "";
+  return value.toISOString().slice(0, 10);
+}
+
 export function formatDateTime(
   value: Date | string | null | undefined,
   locale = DEFAULT_LOCALE,
