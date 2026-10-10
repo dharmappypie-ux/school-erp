@@ -37,6 +37,13 @@ export interface SiblingRow {
   schoolName: string;
   notes: string;
   linkedStudent: { id: string; name: string; admissionNo: string } | null;
+  /**
+   * False when the row belongs to the other student — they named this one, not
+   * the reverse. It still shows, because the relationship is real from both
+   * sides, but editing or deleting it from here would quietly change a record
+   * somebody else owns.
+   */
+  editable: boolean;
 }
 
 const RELATION_LABEL: Record<SiblingRow["relation"], string> = {
@@ -145,22 +152,43 @@ export function SiblingPanel({
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setEditing(sibling)}
-                >
-                  Edit
-                </Button>
-                {/* Its own form, a sibling of the add form below — never nested. */}
-                <form action={removeSibling}>
-                  <input type="hidden" name="id" value={sibling.id} />
-                  <input type="hidden" name="studentId" value={studentId} />
-                  <Button type="submit" variant="secondary" size="sm">
-                    Remove
-                  </Button>
-                </form>
+                {sibling.editable ? (
+                  <>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEditing(sibling)}
+                    >
+                      Edit
+                    </Button>
+                    {/* Its own form, a sibling of the add form below — never nested. */}
+                    <form action={removeSibling}>
+                      <input type="hidden" name="id" value={sibling.id} />
+                      <input type="hidden" name="studentId" value={studentId} />
+                      <Button type="submit" variant="secondary" size="sm">
+                        Remove
+                      </Button>
+                    </form>
+                  </>
+                ) : (
+                  // The row lives on the other student's record. Showing Edit or
+                  // Remove here would change somebody else's data from a page
+                  // that never mentioned them.
+                  <span className="text-[11px] text-muted">
+                    Recorded on{" "}
+                    {sibling.linkedStudent ? (
+                      <Link
+                        href={`/students/${sibling.linkedStudent.id}/edit`}
+                        className="font-medium underline-offset-2 hover:underline"
+                      >
+                        their record
+                      </Link>
+                    ) : (
+                      "their record"
+                    )}
+                  </span>
+                )}
               </div>
             </li>
           ))}
