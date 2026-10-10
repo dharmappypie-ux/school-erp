@@ -62,6 +62,14 @@ export default async function StudentProfilePage({
     where: { id },
     include: {
       guardians: { include: { guardian: true } },
+      siblings: {
+        orderBy: [{ dateOfBirth: "asc" }, { name: "asc" }],
+        include: {
+          siblingStudent: {
+            select: { id: true, admissionNo: true, firstName: true, lastName: true },
+          },
+        },
+      },
       enrollments: {
         orderBy: { enrolledOn: "desc" },
         include: {
@@ -317,6 +325,56 @@ export default async function StudentProfilePage({
               }
             />
           </dl>
+        </Card>
+
+        <Card>
+          <CardHeader
+            title="Siblings"
+            description="Named by the family — edit on the student's edit page"
+          />
+          {student.siblings.length === 0 ? (
+            <EmptyState title="No siblings recorded" />
+          ) : (
+            <ul className="divide-y divide-border">
+              {student.siblings.map((sibling) => (
+                <li key={sibling.id} className="px-5 py-3.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      {/* A sibling on this roll links to their record; one
+                          elsewhere is just a name the family gave us. */}
+                      {sibling.siblingStudent ? (
+                        <Link
+                          href={`/students/${sibling.siblingStudent.id}`}
+                          className="truncate text-sm font-medium underline-offset-2 hover:underline"
+                        >
+                          {sibling.siblingStudent.firstName}{" "}
+                          {sibling.siblingStudent.lastName ?? ""}
+                        </Link>
+                      ) : (
+                        <p className="truncate text-sm font-medium">{sibling.name}</p>
+                      )}
+                      <p className="mt-0.5 text-xs text-muted">
+                        {sibling.relation.toLowerCase()}
+                        {sibling.dateOfBirth
+                          ? ` · born ${formatDate(sibling.dateOfBirth)}`
+                          : ""}
+                      </p>
+                      {sibling.siblingStudent ? (
+                        <p className="text-xs text-muted">
+                          {sibling.siblingStudent.admissionNo}
+                        </p>
+                      ) : sibling.schoolName ? (
+                        <p className="text-xs text-muted">{sibling.schoolName}</p>
+                      ) : null}
+                    </div>
+                    {sibling.siblingStudent ? (
+                      <Badge tone="brand">On this roll</Badge>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
 
         <Card>
