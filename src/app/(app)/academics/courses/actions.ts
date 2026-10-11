@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, requireFeature } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { isSafeHttpUrl } from "@/lib/lms";
 import { scopedDb } from "@/lib/tenant";
@@ -39,6 +39,7 @@ export async function createCourse(
   }
 
   const session = await requirePermission("lms.manage");
+  await requireFeature("lms");
   const db = scopedDb(session.schoolId);
   const { title, summary, description, classLevelId, subjectId, teacherId } = parsed.data;
 
@@ -99,6 +100,7 @@ export async function setCourseStatus(
   const session = await requirePermission(
     parsed.data === "PUBLISHED" ? "lms.publish" : "lms.manage",
   );
+  await requireFeature("lms");
   const db = scopedDb(session.schoolId);
 
   const course = await db.course.findUnique({
@@ -161,6 +163,7 @@ export async function createLesson(
   }
 
   const session = await requirePermission("lms.manage");
+  await requireFeature("lms");
   const db = scopedDb(session.schoolId);
   const { courseId, title, content, videoUrl, durationMinutes } = parsed.data;
 
@@ -213,6 +216,7 @@ export async function createLesson(
  */
 export async function deleteLesson(lessonId: string): Promise<ActionResult> {
   const session = await requirePermission("lms.manage");
+  await requireFeature("lms");
   const db = scopedDb(session.schoolId);
 
   // tenant-safe: the lesson is reached through its course, filtered to this school.
@@ -266,6 +270,7 @@ export async function addResource(
   }
 
   const session = await requirePermission("lms.manage");
+  await requireFeature("lms");
   const db = scopedDb(session.schoolId);
   const { courseId, lessonId, title, type, url } = parsed.data;
 
@@ -308,6 +313,7 @@ export async function addResource(
 /** Removes a resource. */
 export async function deleteResource(resourceId: string): Promise<ActionResult> {
   const session = await requirePermission("lms.manage");
+  await requireFeature("lms");
   const db = scopedDb(session.schoolId);
 
   // tenant-safe: the resource is reached through its course, filtered to this school.

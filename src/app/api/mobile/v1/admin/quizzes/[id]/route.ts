@@ -14,7 +14,7 @@ export { OPTIONS } from "@/lib/mobile-auth";
  * detail (authoring side — correct answers ARE shown, unlike the student view).
  */
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const guard = await requireMobile(req, ["quiz.read", "quiz.manage"]);
+  const guard = await requireMobile(req, ["quiz.read", "quiz.manage"], { feature: "lms" });
   if (guard instanceof NextResponse) return guard;
   const session = guard;
   const { id } = await ctx.params;

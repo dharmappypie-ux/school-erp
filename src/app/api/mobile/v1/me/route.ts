@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { featuresFor } from "@/lib/entitlements";
 import { cors, resolveMobileSession, passwordChangeRequired }
   from "@/lib/mobile-auth";
 
@@ -27,6 +28,8 @@ export async function GET(req: Request) {
     schoolName: session.schoolName,
     roleKeys: session.roleKeys,
     permissions: session.permissions,
+    plan: session.plan,
+    features: featuresFor(session.plan),
     isStaff: session.staffId != null,
     isGuardian: session.guardianId != null,
     isStudent: session.studentId != null,

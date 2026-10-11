@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, requireFeature } from "@/lib/auth";
 import { canAllocate } from "@/lib/hostel";
 import { scopedDb } from "@/lib/tenant";
 
@@ -33,6 +33,7 @@ export async function saveBlock(
   }
 
   const session = await requirePermission("hostel.manage");
+  await requireFeature("hostel");
   const db = scopedDb(session.schoolId);
   const editingId = raw.id?.trim() || null;
 
@@ -92,6 +93,7 @@ export async function addRoom(
   }
 
   const session = await requirePermission("hostel.manage");
+  await requireFeature("hostel");
   const db = scopedDb(session.schoolId);
 
   const block = await db.hostel.findUnique({
@@ -160,6 +162,7 @@ export async function allocateRoom(
   }
 
   const session = await requirePermission("hostel.manage");
+  await requireFeature("hostel");
   const db = scopedDb(session.schoolId);
   const yearId = session.academicYear?.id;
   if (!yearId) {
@@ -244,6 +247,7 @@ export async function allocateRoom(
 
 export async function vacateAllocation(allocationId: string): Promise<ActionResult> {
   const session = await requirePermission("hostel.manage");
+  await requireFeature("hostel");
   const db = scopedDb(session.schoolId);
 
   const allocation = await db.hostelAllocation.findUnique({

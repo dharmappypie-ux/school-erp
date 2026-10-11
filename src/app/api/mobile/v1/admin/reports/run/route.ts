@@ -36,7 +36,7 @@ function present(value: unknown): string | null {
  * plus the chosen source's own permission.
  */
 export async function POST(req: Request) {
-  const guard = await requireMobile(req, "reports.build");
+  const guard = await requireMobile(req, "reports.build", { feature: "reports" });
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 

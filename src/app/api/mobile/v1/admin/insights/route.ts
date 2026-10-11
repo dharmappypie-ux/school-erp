@@ -14,7 +14,7 @@ export { OPTIONS } from "@/lib/mobile-auth";
  * level. Mirror of the web /insights page.
  */
 export async function GET(req: Request) {
-  const guard = await requireMobile(req, ["ai.insights", "analytics.read"]);
+  const guard = await requireMobile(req, ["ai.insights", "analytics.read"], { feature: "ai_insights" });
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 

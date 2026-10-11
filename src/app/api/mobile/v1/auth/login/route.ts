@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { prisma } from "@/lib/db";
+import { featuresFor } from "@/lib/entitlements";
 import { cors } from "@/lib/mobile-auth";
 import { verifyPassword } from "@/lib/password";
 import { createSession } from "@/lib/session";
@@ -34,7 +35,7 @@ export async function POST(req: Request) {
       deletedAt: null,
       school: school ? { slug: school, isActive: true } : { isActive: true },
     },
-    include: { roles: { select: { key: true } }, school: { select: { name: true, slug: true } } },
+    include: { roles: { select: { key: true } }, school: { select: { name: true, slug: true, plan: true } } },
     take: 5,
   });
 
@@ -83,6 +84,11 @@ export async function POST(req: Request) {
         email: user.email,
         school: user.school.name,
         roles: user.roles.map((r) => r.key),
+        // The school's plan and the features it unlocks, so the app can hide
+        // tiles the plan doesn't include. The server still enforces each — this
+        // is UX, not the security boundary.
+        plan: user.school.plan,
+        features: featuresFor(user.school.plan),
       },
     }));
   }

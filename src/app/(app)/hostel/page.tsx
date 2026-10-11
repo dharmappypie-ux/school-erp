@@ -16,7 +16,7 @@ import {
   cn,
   type Tone,
 } from "@/components/ui";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, requireFeature } from "@/lib/auth";
 import { formatDate, formatMoney, initials } from "@/lib/format";
 import {
   canAllocate,
@@ -39,6 +39,7 @@ const OCCUPANCY_TONE: Record<OccupancyState, Tone> = {
 
 export default async function HostelPage() {
   const session = await requirePermission("hostel.read");
+  await requireFeature("hostel");
   const db = scopedDb(session.schoolId);
   const canManage = hasPermission(session.permissions, "hostel.manage");
 

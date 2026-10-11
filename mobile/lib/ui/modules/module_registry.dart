@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/models.dart';
+import '../../state/providers.dart';
 import '../../theme/app_theme.dart';
 import '../screens/attendance_screen.dart';
 import '../screens/courses_screen.dart';
@@ -66,6 +68,22 @@ const _staff = {UserRole.teacher, UserRole.admin};
 const _teacherAuthoring = {'courses', 'quizzes', 'reportcards', 'analytics', 'aiinsights', 'ask'};
 const _admin = {UserRole.admin};
 const _teacherAdmin = {UserRole.teacher, UserRole.admin};
+
+/// Maps a module key to the subscription feature that unlocks it. Modules absent
+/// from this map are "core" and shown on every plan. Must match the server's
+/// `@/lib/entitlements` Feature keys. When the plan's feature set is unknown
+/// (offline session), nothing is hidden.
+const _moduleFeature = <String, String>{
+  'courses': 'lms',
+  'quizzes': 'lms',
+  'transport': 'transport',
+  'hostel': 'hostel',
+  'broadcasts': 'broadcasts',
+  'analytics': 'analytics',
+  'aiinsights': 'ai_insights',
+  'ask': 'ask_ai',
+  'reports': 'reports',
+};
 
 /// The full catalogue, grouped exactly like the web console's sidebar.
 const kModules = <ModuleDef>[
@@ -224,8 +242,18 @@ final Map<String, _Create> _adminCreate = {
 
 /// The grouped module grid for a role, as a list of section widgets that can be
 /// embedded in any scroll view.
-List<Widget> modulesSections(BuildContext context, UserRole role) {
-  final mine = kModules.where((m) => m.roles.contains(role)).toList();
+List<Widget> modulesSections(
+  BuildContext context,
+  UserRole role, {
+  /// The gated features the plan unlocks. `null` = unknown → hide nothing.
+  Set<String>? allowedFeatures,
+}) {
+  final mine = kModules.where((m) {
+    if (!m.roles.contains(role)) return false;
+    final feature = _moduleFeature[m.key];
+    if (feature == null || allowedFeatures == null) return true;
+    return allowedFeatures.contains(feature);
+  }).toList();
   final bySection = <String, List<ModuleDef>>{};
   for (final m in mine) {
     bySection.putIfAbsent(m.section, () => []).add(m);
@@ -252,34 +280,42 @@ List<Widget> modulesSections(BuildContext context, UserRole role) {
 
 /// A self-contained, pushable "All modules" page for a role (gradient header +
 /// back button).
-class ModulesPage extends StatelessWidget {
+class ModulesPage extends ConsumerWidget {
   const ModulesPage({super.key, required this.role});
   final UserRole role;
 
   @override
-  Widget build(BuildContext context) => DetailScaffold(
+  Widget build(BuildContext context, WidgetRef ref) => DetailScaffold(
         title: 'All modules',
         subtitle: 'Every ${role.label.toLowerCase()} feature',
         icon: Icons.apps_rounded,
-        children: modulesSections(context, role),
+        children: modulesSections(
+          context,
+          role,
+          allowedFeatures: ref.watch(authProvider).features,
+        ),
       );
 }
 
 /// The "Modules" bottom-nav tab: a hamburger header (opens the drawer) over the
 /// grouped module grid. Lives inside a shell Scaffold.
-class ModulesTab extends StatelessWidget {
+class ModulesTab extends ConsumerWidget {
   const ModulesTab({super.key, required this.role});
   final UserRole role;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(18, 10, 18, 28),
       children: [
         const AppScreenHeader(eyebrowText: 'Explore', title: 'All modules'),
         const SizedBox(height: 18),
-        ...modulesSections(context, role),
+        ...modulesSections(
+          context,
+          role,
+          allowedFeatures: ref.watch(authProvider).features,
+        ),
       ],
     );
   }

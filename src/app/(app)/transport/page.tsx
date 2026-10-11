@@ -15,7 +15,7 @@ import {
   type Tone,
 } from "@/components/ui";
 import { AddRoute, AddVehicle } from "@/app/(app)/transport/manage-panels";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, requireFeature } from "@/lib/auth";
 import { formatDate, toNumber } from "@/lib/format";
 import { hasPermission } from "@/lib/permissions";
 import { scopedDb } from "@/lib/tenant";
@@ -46,6 +46,7 @@ const OCCUPANCY_TONE: Record<OccupancyState, Tone> = {
 
 export default async function TransportPage() {
   const session = await requirePermission("transport.read");
+  await requireFeature("transport");
   const db = scopedDb(session.schoolId);
   const canManage = hasPermission(session.permissions, "transport.manage");
   const yearId = session.academicYear?.id;

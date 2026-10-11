@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, requireFeature } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { scopedDb } from "@/lib/tenant";
 
@@ -34,6 +34,7 @@ export async function createQuiz(
   }
 
   const session = await requirePermission("quiz.manage");
+  await requireFeature("lms");
   const db = scopedDb(session.schoolId);
   const { title, description, classLevelId, subjectId, teacherId, timeLimitMinutes } = parsed.data;
 
@@ -89,6 +90,7 @@ export async function setQuizStatus(
   const session = await requirePermission(
     parsed.data === "PUBLISHED" ? "quiz.publish" : "quiz.manage",
   );
+  await requireFeature("lms");
   const db = scopedDb(session.schoolId);
 
   const quiz = await db.quiz.findUnique({
@@ -155,6 +157,7 @@ export async function addQuestion(
   }
 
   const session = await requirePermission("quiz.manage");
+  await requireFeature("lms");
   const db = scopedDb(session.schoolId);
   const { quizId, prompt, correctOption, points, explanation } = parsed.data;
 
@@ -220,6 +223,7 @@ export async function addQuestion(
 /** Deletes a question and renumbers the ones after it, in a transaction. */
 export async function deleteQuestion(questionId: string): Promise<ActionResult> {
   const session = await requirePermission("quiz.manage");
+  await requireFeature("lms");
   const db = scopedDb(session.schoolId);
 
   // tenant-safe: the question is reached through its quiz, filtered to this school.

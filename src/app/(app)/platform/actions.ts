@@ -8,6 +8,8 @@ import { z } from "zod";
 import { requirePlatformAdmin } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
+import { ALL_PLANS, PLAN_LABEL } from "@/lib/entitlements";
+import { SubscriptionPlan } from "@/generated/prisma/enums";
 import { hashPassword } from "@/lib/password";
 import { PLATFORM_WORKSPACE_SLUG, ROLE_PRESETS } from "@/lib/permissions";
 
@@ -375,6 +377,40 @@ export async function resetSchoolAdminPassword(
     ok: true,
     message: `New one-time password for ${loaded.user.firstName}: ${password}.`,
   };
+}
+
+/** Changes a school's subscription plan, which gates its optional features. */
+export async function setSchoolPlan(
+  schoolId: string,
+  plan: SubscriptionPlan,
+): Promise<ActionResult> {
+  if (!(ALL_PLANS as string[]).includes(plan)) {
+    return { ok: false, message: "Unknown plan." };
+  }
+  const session = await requirePlatformAdmin();
+
+  const school = await loadManagedSchool(schoolId);
+  if (!school) return { ok: false, message: "That school does not exist." };
+
+  const before = await prisma.school.findUnique({
+    where: { id: schoolId },
+    select: { plan: true },
+  });
+  await prisma.school.update({ where: { id: schoolId }, data: { plan } });
+
+  await recordAudit({
+    schoolId: session.schoolId,
+    userId: session.userId,
+    action: "platform.school.plan",
+    entityType: "School",
+    entityId: schoolId,
+    before: { plan: before?.plan },
+    after: { plan },
+  });
+
+  revalidatePath(`/platform/${schoolId}`);
+  revalidatePath("/platform");
+  return { ok: true, message: `${school.name} is now on the ${PLAN_LABEL[plan]} plan.` };
 }
 
 const ADMIN_STATUSES = ["ACTIVE", "INACTIVE", "SUSPENDED"] as const;

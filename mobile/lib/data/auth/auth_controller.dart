@@ -29,6 +29,8 @@ class AuthController extends ChangeNotifier {
   static const _tokenKey = 'session_token';
   static const _roleKey = 'session_role';
   static const _nameKey = 'session_name';
+  static const _planKey = 'session_plan';
+  static const _featuresKey = 'session_features';
 
   bool _ready = false;
   bool get ready => _ready;
@@ -42,10 +44,29 @@ class AuthController extends ChangeNotifier {
   String? _name;
   String? get name => _name;
 
+  /// The school's subscription plan (e.g. "PREMIUM"), or null when unknown.
+  String? _plan;
+  String? get plan => _plan;
+
+  /// The gated features the plan unlocks. `null` means "not known yet" (an
+  /// offline/local session) — in that case nothing is hidden; an empty set is a
+  /// known state (a plan with no gated features) and does hide them.
+  Set<String>? _features;
+  Set<String>? get features => _features;
+
+  /// Whether a feature tile should be shown. Unknown plan → always shown.
+  bool allowsFeature(String feature) =>
+      _features == null || _features!.contains(feature);
+
   Future<void> restore() async {
     _token = await _storage.read(key: _tokenKey);
     _role = UserRole.fromName(await _storage.read(key: _roleKey));
     _name = await _storage.read(key: _nameKey);
+    _plan = await _storage.read(key: _planKey);
+    final rawFeatures = await _storage.read(key: _featuresKey);
+    _features = rawFeatures == null
+        ? null
+        : (rawFeatures.isEmpty ? <String>{} : rawFeatures.split(',').toSet());
     _api.setToken(_token);
     _ready = true;
     notifyListeners();
@@ -69,6 +90,11 @@ class AuthController extends ChangeNotifier {
         _name = (user['name'] as String?)?.trim();
         final roles = (user['roles'] as List?)?.map((e) => e.toString()).toList() ?? const [];
         serverRole = _resolveRole(roles);
+        _plan = (user['plan'] as String?)?.trim();
+        final feats = user['features'];
+        if (feats is List) {
+          _features = feats.map((e) => e.toString()).toSet();
+        }
       }
     }
 
@@ -81,6 +107,10 @@ class AuthController extends ChangeNotifier {
     await _storage.write(key: _tokenKey, value: effective);
     await _storage.write(key: _roleKey, value: _role.name);
     if (_name != null) await _storage.write(key: _nameKey, value: _name!);
+    if (_plan != null) await _storage.write(key: _planKey, value: _plan!);
+    if (_features != null) {
+      await _storage.write(key: _featuresKey, value: _features!.join(','));
+    }
     notifyListeners();
     return null;
   }
@@ -97,10 +127,14 @@ class AuthController extends ChangeNotifier {
     _token = null;
     _role = UserRole.parent;
     _name = null;
+    _plan = null;
+    _features = null;
     _api.setToken(null);
     await _storage.delete(key: _tokenKey);
     await _storage.delete(key: _roleKey);
     await _storage.delete(key: _nameKey);
+    await _storage.delete(key: _planKey);
+    await _storage.delete(key: _featuresKey);
     notifyListeners();
   }
 }

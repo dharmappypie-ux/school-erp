@@ -14,7 +14,7 @@ const Schema = z.object({
 
 /** POST /api/mobile/v1/admin/quizzes/status — publish/archive/revert, like the web. */
 export async function POST(req: Request) {
-  const guard = await requireMobile(req, ["quiz.publish", "quiz.manage"]);
+  const guard = await requireMobile(req, ["quiz.publish", "quiz.manage"], { feature: "lms" });
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 

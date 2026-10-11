@@ -11,7 +11,7 @@ export { OPTIONS } from "@/lib/mobile-auth";
  * the current year (deterministic, explainable model). Mirror of web refreshInsights.
  */
 export async function POST(req: Request) {
-  const guard = await requireMobile(req, "ai.insights");
+  const guard = await requireMobile(req, "ai.insights", { feature: "ai_insights" });
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 
