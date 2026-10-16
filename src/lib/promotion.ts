@@ -19,8 +19,9 @@ import { scopedDb } from "@/lib/tenant";
  * What happens to one student at the end of the year.
  *
  * RETAINED repeats the year in the same class, so it still creates an
- * enrollment in the new year — just pointing at the old section. PASSED_OUT and
- * TRANSFERRED create nothing: the student leaves the roll.
+ * enrollment in the new year — pointing at that year's copy of the class the
+ * student was already in. PASSED_OUT and TRANSFERRED create nothing: the
+ * student leaves the roll.
  */
 export const OUTCOMES = ["PROMOTED", "RETAINED", "PASSED_OUT", "TRANSFERRED"] as const;
 export type Outcome = (typeof OUTCOMES)[number];
@@ -118,6 +119,7 @@ export async function promoteSection(
         id: true,
         name: true,
         academicYearId: true,
+        classLevelId: true,
         classLevel: { select: { name: true } },
       },
     }),
@@ -200,17 +202,90 @@ export async function promoteSection(
     return true;
   });
 
-  const promotedIn = movers.filter(
-    (enrollment) => decisionFor(enrollment.student.id) === "PROMOTED",
+  // Where a retained student goes.
+  //
+  // Sections belong to one academic year, so "the class they were in" means the
+  // next year's copy of it — the same grade and section name — not the row the
+  // year just ended with. Enrolling them in the old year's section would create
+  // the only kind of enrollment the rest of the app does not expect: one whose
+  // academic year differs from its section's. Nothing would list it for the new
+  // year, so a retained child would be as invisible to attendance and fees as
+  // one left with no enrollment at all.
+  const retainedIn = movers.filter(
+    (enrollment) => decisionFor(enrollment.student.id) === "RETAINED",
   ).length;
 
-  const projected = target._count.enrollments + promotedIn;
-  if (projected > target.capacity && !allowOverfill) {
-    return {
-      ok: false,
-      message: `${target.classLevel.name} ${target.name} would hold ${projected} of ${target.capacity} places. Choose another section, or allow over capacity.`,
-      skipped,
+  let retention: { id: string; capacity: number; filled: number } | null = null;
+  if (retainedIn > 0) {
+    const sameClassNextYear = await db.section.findFirst({
+      where: {
+        academicYearId: target.academicYearId,
+        classLevelId: source.classLevelId,
+        name: source.name,
+      },
+      select: {
+        id: true,
+        capacity: true,
+        _count: { select: { enrollments: { where: { isActive: true } } } },
+      },
+    });
+    if (!sameClassNextYear) {
+      return {
+        ok: false,
+        message: `${source.classLevel.name} ${source.name} does not exist in ${targetYear?.name ?? "that year"}, so nobody can repeat it. Create that section first, or choose another outcome.`,
+        skipped,
+      };
+    }
+    retention = {
+      id: sameClassNextYear.id,
+      capacity: sameClassNextYear.capacity,
+      filled: sameClassNextYear._count.enrollments,
     };
+  }
+
+  // Capacity, per receiving section. Promotions and retentions can land in the
+  // same one — promoting Grade 1 A into next year's Grade 1 A is a legal if
+  // unusual run — so they are counted together rather than checked twice.
+  const receiving = new Map<
+    string,
+    { label: string; capacity: number; filled: number; incoming: number }
+  >([
+    [
+      target.id,
+      {
+        label: `${target.classLevel.name} ${target.name}`,
+        capacity: target.capacity,
+        filled: target._count.enrollments,
+        incoming: 0,
+      },
+    ],
+  ]);
+  if (retention && !receiving.has(retention.id)) {
+    receiving.set(retention.id, {
+      label: `${source.classLevel.name} ${source.name}`,
+      capacity: retention.capacity,
+      filled: retention.filled,
+      incoming: 0,
+    });
+  }
+  for (const enrollment of movers) {
+    const outcome = decisionFor(enrollment.student.id);
+    const sectionId =
+      outcome === "PROMOTED" ? target.id : outcome === "RETAINED" ? retention!.id : null;
+    if (sectionId) receiving.get(sectionId)!.incoming += 1;
+  }
+
+  if (!allowOverfill) {
+    for (const seats of receiving.values()) {
+      const projected = seats.filled + seats.incoming;
+      if (projected > seats.capacity) {
+        return {
+          ok: false,
+          message: `${seats.label} would hold ${projected} of ${seats.capacity} places. Choose another section, or allow over capacity.`,
+          skipped,
+        };
+      }
+    }
   }
 
   await db.$transaction(async (tx) => {
@@ -227,8 +302,9 @@ export async function promoteSection(
           data: {
             schoolId: actor.schoolId,
             studentId: enrollment.student.id,
-            // A retained student repeats the year in the class they were in.
-            sectionId: outcome === "PROMOTED" ? target.id : source.id,
+            // A retained student repeats the year in the same class — next
+            // year's copy of it, resolved above.
+            sectionId: outcome === "PROMOTED" ? target.id : retention!.id,
             academicYearId: target.academicYearId,
             rollNumber: enrollment.rollNumber,
             isActive: true,
