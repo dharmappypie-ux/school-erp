@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { agingBuckets, distribution, mean, rankGroups, trend } from "@/lib/analytics";
 import { toNumber } from "@/lib/format";
 import { cors, requireMobile } from "@/lib/mobile-auth";
+import { hasAnyPermission, hasPermission } from "@/lib/permissions";
 import { scopedDb } from "@/lib/tenant";
 
 export { OPTIONS } from "@/lib/mobile-auth";
@@ -22,11 +23,23 @@ const GRADE_BANDS = [
  * 14-day trend series), academic performance (grade spread, pass rate, subject
  * & class rankings), finance (collection rate, aging, trend) and admissions.
  * Mirror of the web /analytics page, reusing the shared lib/analytics helpers.
+ *
+ * `analytics.read` opens the dashboard; it does not open every subject inside
+ * it. A teacher holds it and holds neither `fees.read` nor `admissions.read`,
+ * so the finance and admissions sections come back null for them rather than
+ * putting the school's collection rate on a class teacher's phone. The app
+ * drops a null section instead of drawing an empty chart.
  */
 export async function GET(req: Request) {
   const guard = await requireMobile(req, ["analytics.read"], { feature: "analytics" });
   if (guard instanceof NextResponse) return guard;
   const session = guard;
+
+  const canSeeMoney = hasAnyPermission(session.permissions, [
+    "fees.read",
+    "fees.report",
+  ]);
+  const canSeeAdmissions = hasPermission(session.permissions, "admissions.read");
 
   const db = scopedDb(session.schoolId);
   const yearId = session.academicYearId;
@@ -148,15 +161,19 @@ export async function GET(req: Request) {
       bottomSubjects: subjectRanking.filter((g) => g.comparable).slice(-3).reverse().map((g) => ({ label: g.label, value: Math.round(g.value * 10) / 10 })),
       classRanking: classRanking.filter((g) => g.comparable).map((g) => ({ label: g.label, value: Math.round(g.value * 10) / 10 })),
     },
-    finance: {
-      billed, collected, collectionRate: Math.round(collectionRate * 10) / 10,
-      totalOverdue, collectionTrend,
-      aging: aging.map((b) => ({ label: b.label, amount: b.amount, count: b.count })),
-    },
-    admissions: {
-      applications,
-      funnel: admissionFunnel.map((r) => ({ label: r.status, value: r._count._all })),
-    },
+    finance: canSeeMoney
+      ? {
+          billed, collected, collectionRate: Math.round(collectionRate * 10) / 10,
+          totalOverdue, collectionTrend,
+          aging: aging.map((b) => ({ label: b.label, amount: b.amount, count: b.count })),
+        }
+      : null,
+    admissions: canSeeAdmissions
+      ? {
+          applications,
+          funnel: admissionFunnel.map((r) => ({ label: r.status, value: r._count._all })),
+        }
+      : null,
     services: { transportAssigned, hostelAllocated, booksOnLoan },
   }));
 }

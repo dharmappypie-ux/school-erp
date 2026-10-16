@@ -10,7 +10,7 @@ import {
   type Feature,
 } from "@/lib/entitlements";
 import { SubscriptionPlan } from "@/generated/prisma/enums";
-import { hasPermission } from "@/lib/permissions";
+import { hasPermission, isPlatformAdmin } from "@/lib/permissions";
 import { hashSessionToken } from "@/lib/session";
 
 /**
@@ -143,6 +143,30 @@ export async function requireMobile(
   }
   if (opts.feature && !hasFeature(session.plan, opts.feature)) {
     return upgradeRequired(opts.feature);
+  }
+  return session;
+}
+
+/**
+ * Guard a mobile route as a PLATFORM OWNER — the tier above any single school.
+ *
+ * Gated on the explicit `PLATFORM_ADMIN` role key, never on a permission: the
+ * `"*"` wildcard that every school super admin holds must not unlock the
+ * cross-tenant console. This is the mobile twin of `requirePlatformAdmin()`.
+ */
+export async function requireMobilePlatformAdmin(
+  req: Request,
+): Promise<MobileSession | NextResponse> {
+  const session = await resolveMobileSession(req);
+  if (!session) {
+    return cors(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
+  }
+  if (session.mustChangePassword) return passwordChangeRequired();
+  if (!isPlatformAdmin(session.roleKeys)) {
+    return cors(NextResponse.json(
+      { error: "This is the platform owner's console." },
+      { status: 403 },
+    ));
   }
   return session;
 }

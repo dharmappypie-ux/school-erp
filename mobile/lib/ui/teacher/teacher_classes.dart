@@ -7,7 +7,12 @@ import '../widgets/widgets.dart';
 import 'class_detail.dart';
 
 class TeacherClassesScreen extends ConsumerWidget {
-  const TeacherClassesScreen({super.key});
+  const TeacherClassesScreen({super.key, this.title = 'My classes'});
+
+  /// A teacher reaches this screen from both the "Classes" and the
+  /// "Attendance" tile — marking a register starts by picking a class — so the
+  /// header says which tile was tapped instead of always saying "My classes".
+  final String title;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -21,7 +26,7 @@ class TeacherClassesScreen extends ConsumerWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(18, 10, 18, 28),
         children: [
-          const AppScreenHeader(title: 'My classes', eyebrowText: 'Teacher'),
+          AppScreenHeader(title: title, eyebrowText: 'Teacher'),
           const SizedBox(height: 18),
           if (async.isLoading)
             const SizedBox(height: 160, child: Center(child: CircularProgressIndicator()))

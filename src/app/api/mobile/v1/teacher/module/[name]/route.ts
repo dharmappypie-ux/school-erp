@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { toNumber } from "@/lib/format";
 import { cors, requireMobile } from "@/lib/mobile-auth";
+import { teacherSectionIds } from "@/lib/teacher-sections";
 import { scopedDb, type ScopedDb } from "@/lib/tenant";
 
 export { OPTIONS } from "@/lib/mobile-auth";
@@ -13,7 +14,8 @@ type Item = {
   badge?: "good" | "warn" | "danger" | "muted";
 };
 
-const cap = (s: string) => (s ? s[0] + s.slice(1).toLowerCase().replace(/_/g, " ") : s);
+const cap = (s: string) =>
+  s ? s[0].toUpperCase() + s.slice(1).toLowerCase().replace(/_/g, " ") : s;
 const shortDate = (d: Date | null | undefined) =>
   d ? new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short" }).format(d) : "";
 const DAY_ORDER = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
@@ -54,7 +56,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ name: string }>
 }
 
 const TITLES: Record<string, string> = {
-  classes: "My classes", attendance: "Attendance — today", timetable: "My timetable",
+  classes: "My classes", students: "My students", attendance: "Attendance — today", timetable: "My timetable",
   exams: "Examinations", homework: "My homework", reportcards: "Report cards",
   courses: "Courses", quizzes: "Quizzes", library: "Library", leave: "My leave",
   notices: "Notices", messages: "Messages", analytics: "Analytics", aiinsights: "AI insights",
@@ -64,6 +66,28 @@ async function load(
   name: string, db: ScopedDb, yearId: string | null, staffId: string | null, userId: string, schoolId: string,
 ): Promise<Item[]> {
   switch (name) {
+    case "students": {
+      // A teacher holds `students.read`, but that is not the whole school roll
+      // on this surface: the roster they teach, in class-and-roll order.
+      const sectionIds = await teacherSectionIds(db, staffId, yearId);
+      if (sectionIds.length === 0) return [];
+      const enrollments = await db.enrollment.findMany({
+        where: { sectionId: { in: sectionIds }, isActive: true, ...(yearId ? { academicYearId: yearId } : {}) },
+        orderBy: [{ rollNumber: "asc" }],
+        take: 300,
+        select: {
+          rollNumber: true,
+          section: { select: { name: true, classLevel: { select: { name: true } } } },
+          student: { select: { firstName: true, lastName: true, admissionNo: true } },
+        },
+      });
+      return enrollments.map((e) => ({
+        title: `${e.student.firstName} ${e.student.lastName ?? ""}`.trim(),
+        subtitle: `${e.section.classLevel.name} · ${e.section.name}${e.rollNumber ? ` · Roll ${e.rollNumber}` : ""}`,
+        trailing: e.student.admissionNo,
+        badge: "good" as const,
+      }));
+    }
     case "classes": {
       const owned = staffId
         ? await db.section.findMany({

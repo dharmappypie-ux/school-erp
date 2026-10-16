@@ -1,28 +1,66 @@
 // Plain data models with sqflite map (de)serialisation. Kept dependency-free
 // so the local database, the API client and the UI all speak the same shapes.
 
-/// Which experience the signed-in user sees. The backend has many role values
-/// (ADMIN, TEACHER, STUDENT, GUARDIAN, PLATFORM_ADMIN…); they collapse to the
-/// three app experiences below.
+/// Which experience the signed-in user sees. The backend has many role keys
+/// (PLATFORM_ADMIN, SUPER_ADMIN, ADMIN, PRINCIPAL, TEACHER, ACCOUNTANT,
+/// LIBRARIAN, STUDENT, PARENT…); they collapse to the five experiences below.
+/// There is one sign-in screen for all of them — the server's roles decide
+/// which one opens, exactly as the web console's login does.
 enum UserRole {
-  parent, // guardian / student companion
+  parent, // guardian portal
+  student, // the student's own portal
   teacher, // class teacher tools
-  admin; // school administration
+  admin, // school administration (and every other staff role)
+  owner; // platform owner — creates and manages whole schools
 
   String get label => switch (this) {
         UserRole.parent => 'Parent',
+        UserRole.student => 'Student',
         UserRole.teacher => 'Teacher',
         UserRole.admin => 'Admin',
+        UserRole.owner => 'Platform owner',
       };
 
-  /// Map a backend role string onto an app experience.
+  /// The two self-service experiences. They share every screen and endpoint —
+  /// the server resolves "my children" for a guardian and "me" for a student —
+  /// so the app only needs to tell them apart in labels.
+  bool get isPortal => this == UserRole.parent || this == UserRole.student;
+
+  /// Staff of a school: sees the school-wide modules, filtered by permission.
+  bool get isStaff => this == UserRole.teacher || this == UserRole.admin;
+
+  /// Which family of mobile endpoints this experience reads
+  /// (`/api/mobile/v1/<segment>/…`). Student and parent share the portal API.
+  String get apiSegment => switch (this) {
+        UserRole.owner => 'platform',
+        UserRole.admin => 'admin',
+        UserRole.teacher => 'teacher',
+        UserRole.student || UserRole.parent => 'parent',
+      };
+
+  /// Map one backend role key onto an app experience. Order matters:
+  /// PLATFORM_ADMIN contains "ADMIN", and the portal keys must not be caught
+  /// by the staff patterns below them.
   static UserRole fromServer(String? role) {
-    final r = (role ?? '').toUpperCase();
-    if (r.contains('ADMIN') || r.contains('PRINCIPAL') || r.contains('OWNER')) {
-      return UserRole.admin;
-    }
-    if (r.contains('TEACHER') || r.contains('STAFF') || r.contains('FACULTY')) {
-      return UserRole.teacher;
+    final r = (role ?? '').toUpperCase().trim();
+    if (r == 'PLATFORM_ADMIN') return UserRole.owner;
+    if (r == 'STUDENT') return UserRole.student;
+    if (r == 'PARENT' || r == 'GUARDIAN') return UserRole.parent;
+    if (r == 'TEACHER') return UserRole.teacher;
+    // Every remaining school role (admin, principal, accountant, librarian,
+    // transport manager, hostel warden, front desk…) is staff that works out
+    // of the school console. Which tiles they actually see is decided by their
+    // permissions, not by this mapping.
+    if (r.isNotEmpty) return UserRole.admin;
+    return UserRole.parent;
+  }
+
+  /// Pick the experience to open for a user holding [roleKeys]. Most capable
+  /// first, mirroring the web's `resolveHomeRoute`.
+  static UserRole bestOf(Iterable<String> roleKeys) {
+    final mapped = roleKeys.map(UserRole.fromServer).toSet();
+    for (final r in [UserRole.owner, UserRole.admin, UserRole.teacher, UserRole.student]) {
+      if (mapped.contains(r)) return r;
     }
     return UserRole.parent;
   }

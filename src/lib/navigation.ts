@@ -189,7 +189,11 @@ export const NAV_GROUPS: NavGroup[] = [
       {
         label: "Promotion",
         href: "/students/promote",
-        permissions: ["students.update"],
+        // `students.promote` is the permission whose whole description is
+        // "Promote students between years", and PRINCIPAL holds it while not
+        // holding `students.update`. Gating on update alone made that
+        // permission dead and kept principals off their own year rollover.
+        permissions: ["students.update", "students.promote"],
         icon: "academics",
       },
       {

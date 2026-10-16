@@ -20,8 +20,12 @@ class AdminAnalyticsScreen extends ConsumerWidget {
     final enr = (d?['enrolment'] as Map?)?.cast<String, dynamic>() ?? const {};
     final att = (d?['attendance'] as Map?)?.cast<String, dynamic>() ?? const {};
     final acad = (d?['academics'] as Map?)?.cast<String, dynamic>() ?? const {};
-    final fin = (d?['finance'] as Map?)?.cast<String, dynamic>() ?? const {};
-    final adm = (d?['admissions'] as Map?)?.cast<String, dynamic>() ?? const {};
+    // null (not `{}`) when the account may open the dashboard but not read fees
+    // or admissions — a teacher holds `analytics.read` and neither of those.
+    // The tiles are dropped rather than drawn as "0%", which would read as a
+    // fact instead of as "not yours to see".
+    final fin = (d?['finance'] as Map?)?.cast<String, dynamic>();
+    final adm = (d?['admissions'] as Map?)?.cast<String, dynamic>();
     final svc = (d?['services'] as Map?)?.cast<String, dynamic>() ?? const {};
 
     return DetailScaffold(
@@ -45,13 +49,21 @@ class AdminAnalyticsScreen extends ConsumerWidget {
             Expanded(child: StatTile(icon: Icons.fact_check_rounded, value: '${att['rate'] ?? 0}%', label: 'Attendance 30d', color: AppColors.good,
                 onTap: null)),
             const SizedBox(width: 12),
-            Expanded(child: StatTile(icon: Icons.payments_rounded, value: '${fin['collectionRate'] ?? 0}%', label: 'Fees collected', color: AppColors.gold)),
+            if (fin != null)
+              Expanded(child: StatTile(icon: Icons.payments_rounded, value: '${fin['collectionRate'] ?? 0}%', label: 'Fees collected', color: AppColors.gold))
+            else
+              Expanded(child: StatTile(icon: Icons.grade_rounded, value: acad['mean'] == null ? '—' : '${acad['mean']}%', label: 'Avg score', color: AppColors.primary)),
           ]),
           const SizedBox(height: 12),
           Row(children: [
-            Expanded(child: StatTile(icon: Icons.grade_rounded, value: acad['mean'] == null ? '—' : '${acad['mean']}%', label: 'Avg score', color: AppColors.primary)),
-            const SizedBox(width: 12),
-            Expanded(child: StatTile(icon: Icons.how_to_reg_rounded, value: '${adm['applications'] ?? 0}', label: 'Applications', color: AppColors.teal)),
+            if (fin != null)
+              Expanded(child: StatTile(icon: Icons.grade_rounded, value: acad['mean'] == null ? '—' : '${acad['mean']}%', label: 'Avg score', color: AppColors.primary))
+            else
+              Expanded(child: StatTile(icon: Icons.menu_book_rounded, value: '${acad['assessments'] ?? 0}', label: 'Assessments', color: AppColors.primary)),
+            if (adm != null) ...[
+              const SizedBox(width: 12),
+              Expanded(child: StatTile(icon: Icons.how_to_reg_rounded, value: '${adm['applications'] ?? 0}', label: 'Applications', color: AppColors.teal)),
+            ],
           ]),
 
           // Attendance 14-day trend
@@ -106,11 +118,11 @@ class AdminAnalyticsScreen extends ConsumerWidget {
           ],
 
           // Finance: aging
-          if ((fin['aging'] as List?)?.isNotEmpty == true) ...[
+          if ((fin?['aging'] as List?)?.isNotEmpty == true) ...[
             const SizedBox(height: 16),
             _ChartCard(
               title: 'Overdue fees — aging',
-              subtitle: 'Total overdue ${_inr.format((fin['totalOverdue'] ?? 0) as num)}',
+              subtitle: 'Total overdue ${_inr.format((fin!['totalOverdue'] ?? 0) as num)}',
               child: _HBars(
                 rows: [for (final a in (fin['aging'] as List).cast<Map<String, dynamic>>())
                   (label: a['label'].toString(), value: (a['amount'] as num).toDouble(), note: _inr.format((a['amount'] ?? 0) as num))],
@@ -120,12 +132,12 @@ class AdminAnalyticsScreen extends ConsumerWidget {
           ],
 
           // Admissions funnel
-          if ((adm['funnel'] as List?)?.isNotEmpty == true) ...[
+          if ((adm?['funnel'] as List?)?.isNotEmpty == true) ...[
             const SizedBox(height: 16),
             _ChartCard(
               title: 'Admissions funnel',
               child: _HBars(
-                rows: [for (final f in (adm['funnel'] as List).cast<Map<String, dynamic>>())
+                rows: [for (final f in (adm!['funnel'] as List).cast<Map<String, dynamic>>())
                   (label: f['label'].toString().replaceAll('_', ' ').toLowerCase(), value: (f['value'] as num).toDouble(), note: '${f['value']}')],
                 color: AppColors.teal,
               ),

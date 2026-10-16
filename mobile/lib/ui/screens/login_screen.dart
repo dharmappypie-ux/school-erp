@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/models/models.dart';
 import '../../state/providers.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/widgets.dart';
 
+/// The one sign-in screen, for every kind of account.
+///
+/// There is deliberately no role picker: a parent, student, teacher, any staff
+/// role and the platform owner all sign in here with the same two fields, and
+/// the account's own roles decide which experience opens — exactly as the web
+/// console's `/login` does. Picking a role by hand could only ever disagree
+/// with the server, and the server would win.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
   @override
@@ -13,32 +19,39 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  // Demo credentials per experience (see DEMO_LOGINS.txt).
-  static const _demo = {
-    UserRole.parent: 'parent.gis20260001@greenwood.edu.in',
-    UserRole.teacher: 'teacher1@greenwood.edu.in',
-    UserRole.admin: 'admin@greenwood.edu.in',
-  };
+  /// One-shot message from the auth layer — e.g. after a password change
+  /// signed every session out. Read once, in initState, because reading it
+  /// clears it.
+  String? _notice;
 
-  UserRole _role = UserRole.parent;
-  final _email = TextEditingController(text: _demo[UserRole.parent]);
-  final _password = TextEditingController(text: 'Password123');
+  final _email = TextEditingController();
+  final _password = TextEditingController();
   bool _busy = false;
   bool _obscure = true;
   String? _error;
 
-  void _pickRole(UserRole r) {
-    setState(() {
-      _role = r;
-      _email.text = _demo[r]!;
-    });
+  @override
+  void initState() {
+    super.initState();
+    final auth = ref.read(authProvider);
+    _notice = auth.takeNotice();
+    // Whoever signed in last on this device, so a returning user only types a
+    // password. Never pre-filled with a password.
+    _email.text = auth.email ?? '';
   }
 
   Future<void> _submit() async {
-    setState(() { _busy = true; _error = null; });
-    final err = await ref.read(authProvider).signIn(_email.text, _password.text, selected: _role);
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final err = await ref.read(authProvider).signIn(_email.text, _password.text);
     if (!mounted) return;
-    setState(() { _busy = false; _error = err; });
+    setState(() {
+      _busy = false;
+      _error = err;
+    });
   }
 
   @override
@@ -68,36 +81,49 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const Text('Welcome to Vidyalaya',
                       style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.6)),
                   const SizedBox(height: 6),
-                  const Text('Choose your role and sign in.',
+                  const Text('Sign in with your school account.',
                       style: TextStyle(fontSize: 14.5, color: AppColors.muted)),
+                  if (_notice != null) ...[
+                    const SizedBox(height: 18),
+                    _Banner(
+                      _notice!,
+                      icon: Icons.check_circle_outline_rounded,
+                      color: AppColors.good,
+                      background: AppColors.goodSoft,
+                    ),
+                  ],
                   const SizedBox(height: 22),
-                  _RoleSelector(role: _role, onChanged: _pickRole),
-                  const SizedBox(height: 18),
                   _field(_email, 'Email', Icons.alternate_email_rounded,
                       keyboard: TextInputType.emailAddress),
                   const SizedBox(height: 12),
                   _field(_password, 'Password', Icons.lock_outline_rounded,
                       obscure: _obscure,
+                      onSubmitted: (_) => _submit(),
                       suffix: IconButton(
                         icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                             color: AppColors.muted, size: 20),
                         onPressed: () => setState(() => _obscure = !_obscure),
                       )),
                   if (_error != null) ...[
-                    const SizedBox(height: 12),
-                    Text(_error!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+                    const SizedBox(height: 14),
+                    _Banner(
+                      _error!,
+                      icon: Icons.error_outline_rounded,
+                      color: AppColors.danger,
+                      background: AppColors.dangerSoft,
+                    ),
                   ],
                   const SizedBox(height: 22),
                   PrimaryButton(
-                    label: _busy ? 'Signing in…' : 'Sign in as ${_role.label}',
+                    label: _busy ? 'Signing in…' : 'Sign in',
                     onPressed: _busy ? null : _submit,
                   ),
                   const SizedBox(height: 16),
-                  Center(
+                  const Center(
                     child: Text(
-                      'Works offline — sign in and use the app even\nbefore the server sync is available.',
+                      'Forgotten your password?\nAsk your school administrator to reset it.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: AppColors.faint, height: 1.4),
+                      style: TextStyle(fontSize: 12, color: AppColors.faint, height: 1.5),
                     ),
                   ),
                 ],
@@ -110,8 +136,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _field(TextEditingController c, String hint, IconData icon,
-      {bool obscure = false, Widget? suffix, TextInputType? keyboard}) {
-    return Container(
+      {bool obscure = false,
+      Widget? suffix,
+      TextInputType? keyboard,
+      ValueChanged<String>? onSubmitted}) {
+    return Semantics(
+      // The hint is a placeholder, not a label. A screen reader announced the
+      // password field — its visibility button carries a name — and said
+      // nothing at all for the email one.
+      textField: true,
+      label: hint,
+      child: Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
@@ -121,6 +156,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         controller: c,
         obscureText: obscure,
         keyboardType: keyboard,
+        onSubmitted: onSubmitted,
+        textInputAction: onSubmitted == null ? TextInputAction.next : TextInputAction.go,
+        autocorrect: false,
+        enableSuggestions: false,
         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         decoration: InputDecoration(
           hintText: hint,
@@ -129,6 +168,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 6),
         ),
+      ),
       ),
     );
   }
@@ -141,56 +181,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 }
 
-class _RoleSelector extends StatelessWidget {
-  const _RoleSelector({required this.role, required this.onChanged});
-  final UserRole role;
-  final ValueChanged<UserRole> onChanged;
-
-  static const _roles = [
-    (UserRole.parent, Icons.family_restroom_rounded),
-    (UserRole.teacher, Icons.co_present_rounded),
-    (UserRole.admin, Icons.admin_panel_settings_rounded),
-  ];
+/// A tinted notice/error strip. Errors are shown as prominently as the success
+/// notice because a refusal that looks like a hint reads as success.
+class _Banner extends StatelessWidget {
+  const _Banner(this.message,
+      {required this.icon, required this.color, required this.background});
+  final String message;
+  final IconData icon;
+  final Color color;
+  final Color background;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(5),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: kCardShadow,
-      ),
-      child: Row(
-        children: [
-          for (final (r, icon) in _roles)
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(AppRadius.chip),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: color, size: 18),
+            const SizedBox(width: 10),
             Expanded(
-              child: GestureDetector(
-                onTap: () => onChanged(r),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    gradient: r == role ? kHeroGradient : null,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(icon,
-                          size: 22, color: r == role ? Colors.white : AppColors.muted),
-                      const SizedBox(height: 5),
-                      Text(r.label,
-                          style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w700,
-                              color: r == role ? Colors.white : AppColors.muted)),
-                    ],
-                  ),
-                ),
-              ),
+              child: Text(message,
+                  style: TextStyle(
+                      fontSize: 13,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
+                      color: color)),
             ),
-        ],
-      ),
-    );
-  }
+          ],
+        ),
+      );
 }

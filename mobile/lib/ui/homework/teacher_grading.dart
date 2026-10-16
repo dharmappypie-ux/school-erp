@@ -75,10 +75,15 @@ class _HwRow extends StatelessWidget {
                 child: Text(h['title']?.toString() ?? '',
                     style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
               ),
+              // Nothing to grade is not the same as everything graded: with no
+              // submissions at all, "All graded" claimed work that never arrived.
               if (toGrade > 0)
                 StatusChip(label: '$toGrade to grade', color: AppColors.warn, bg: AppColors.warnSoft)
+              else if (graded > 0)
+                StatusChip(label: 'All graded', color: AppColors.good, bg: AppColors.goodSoft)
               else
-                StatusChip(label: 'All graded', color: AppColors.good, bg: AppColors.goodSoft),
+                StatusChip(
+                    label: 'No submissions', color: AppColors.muted, bg: AppColors.line),
             ],
           ),
           const SizedBox(height: 4),

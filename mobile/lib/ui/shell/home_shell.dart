@@ -12,8 +12,15 @@ import '../screens/settings_screen.dart';
 import '../widgets/role_nav.dart';
 import 'app_drawer.dart';
 
+/// The portal shell — the same five tabs for a guardian and for a student.
+/// They read the same endpoints (the server resolves "my children" for one and
+/// "me" for the other), so only the labels differ.
 class HomeShell extends ConsumerStatefulWidget {
-  const HomeShell({super.key});
+  const HomeShell({super.key, this.role = UserRole.parent});
+
+  /// [UserRole.parent] or [UserRole.student].
+  final UserRole role;
+
   @override
   ConsumerState<HomeShell> createState() => _HomeShellState();
 }
@@ -73,7 +80,7 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
           index: _index,
           children: [
             HomeScreen(onOpenTab: (i) => setState(() => _index = i)),
-            const ModulesTab(role: UserRole.parent),
+            ModulesTab(role: widget.role),
             const FeesScreen(),
             const NoticesScreen(),
             const SettingsScreen(),

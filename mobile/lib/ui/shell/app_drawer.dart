@@ -29,7 +29,13 @@ class AppDrawer extends ConsumerWidget {
         children: [
           _Header(
             name: student?.name ?? 'Vidyalaya',
-            subtitle: student?.className ?? 'Parent account',
+            // The role first, then the class: the class name is always present
+            // for a portal account, so a fallback could never show it — and the
+            // two portals read identically without it.
+            subtitle: [
+              ref.watch(authProvider).role.label,
+              if (student?.className != null) student!.className,
+            ].join(' · '),
             sync: sync,
             onSync: () => ref.read(syncProvider).sync(manual: true),
             onSignOut: () => _confirmSignOut(context, ref),

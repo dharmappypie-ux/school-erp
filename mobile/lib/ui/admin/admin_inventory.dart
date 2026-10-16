@@ -5,6 +5,7 @@ import '../../state/providers.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/form_widgets.dart';
 import '../widgets/widgets.dart';
+import 'inventory_item_detail.dart';
 
 /// Inventory hub: add an item, record stock movements, see current stock.
 class AdminInventoryScreen extends ConsumerWidget {
@@ -50,7 +51,14 @@ class AdminInventoryScreen extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             child: Column(children: [
               for (var i = 0; i < items.length; i++) ...[
-                Padding(
+                InkWell(
+                  onTap: () => _open(
+                      context,
+                      InventoryItemDetailScreen(
+                        itemId: items[i]['id'].toString(),
+                        name: items[i]['name']?.toString() ?? 'Item',
+                      )),
+                  child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 11),
                   child: Row(children: [
                     Expanded(child: Text(items[i]['name']?.toString() ?? '',
@@ -60,7 +68,9 @@ class AdminInventoryScreen extends ConsumerWidget {
                           child: Icon(Icons.warning_amber_rounded, size: 16, color: AppColors.warn)),
                     Text('${items[i]['quantity']} ${items[i]['unit'] ?? ''}',
                         style: const TextStyle(fontWeight: FontWeight.w800)),
+                    const Icon(Icons.chevron_right_rounded, color: AppColors.faint, size: 20),
                   ]),
+                ),
                 ),
                 if (i < items.length - 1) const Hairline(),
               ],

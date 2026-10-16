@@ -156,7 +156,8 @@ class HomeScreen extends ConsumerWidget {
                     iconColor: AppColors.primary,
                     title: 'All features',
                     subtitle: 'Timetable, fees, notices, transport & more',
-                    onTap: () => _open(context, const ModulesPage(role: UserRole.parent))),
+                    onTap: () =>
+                        _open(context, ModulesPage(role: ref.read(authProvider).role))),
               ],
             ),
           ),

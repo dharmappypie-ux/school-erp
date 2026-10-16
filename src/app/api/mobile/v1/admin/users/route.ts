@@ -17,7 +17,7 @@ export async function GET(req: Request) {
   const session = guard;
 
   const db = scopedDb(session.schoolId);
-  const [users, roles] = await Promise.all([
+  const [users, roles, total] = await Promise.all([
     db.user.findMany({
       orderBy: { firstName: "asc" },
       take: 200,
@@ -31,9 +31,13 @@ export async function GET(req: Request) {
       orderBy: { name: "asc" },
       select: { key: true, name: true },
     }),
+    // The list is capped at 200. Without the real total the app printed the
+    // page length as the count, so 755 users read as "200 logins".
+    db.user.count({ where: { deletedAt: null } }),
   ]);
 
   return cors(NextResponse.json({
+    total,
     canManageRoles: guard.permissions.includes("*") || guard.permissions.includes("roles.manage") || guard.permissions.includes("roles.*"),
     roles: roles.map((r) => ({ key: r.key, name: r.name })),
     items: users

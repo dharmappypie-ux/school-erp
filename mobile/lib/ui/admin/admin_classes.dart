@@ -14,14 +14,14 @@ class AdminClassesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final meta = ref.watch(adminMetaProvider);
+    final meta = ref.watch(adminSectionsProvider);
     final sections = (meta.value?['sections'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
 
     return DetailScaffold(
       title: 'Classes & subjects',
-      subtitle: '${sections.length} classes',
+      subtitle: meta.value == null ? 'Loading…' : '${sections.length} classes',
       icon: Icons.meeting_room_rounded,
-      onRefresh: () async => ref.invalidate(adminMetaProvider),
+      onRefresh: () async => ref.invalidate(adminSectionsProvider),
       fab: FloatingActionButton.extended(
         backgroundColor: AppColors.primary, foregroundColor: Colors.white,
         onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CreateSubjectScreen())),
@@ -38,7 +38,7 @@ class AdminClassesScreen extends ConsumerWidget {
           ]),
         ),
         const SizedBox(height: 14),
-        if (meta.isLoading)
+        if (meta.value == null && meta.isLoading)
           const SizedBox(height: 140, child: Center(child: CircularProgressIndicator()))
         else if (meta.value == null)
           const AppCard(child: Row(children: [
