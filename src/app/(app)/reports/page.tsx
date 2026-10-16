@@ -3,7 +3,7 @@ import {
   type SavedReportSummary,
 } from "@/app/(app)/reports/report-builder";
 import { PageHeader } from "@/components/ui";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, requireFeature } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { SOURCES } from "@/lib/reports";
 import { scopedDb } from "@/lib/tenant";
@@ -12,6 +12,7 @@ export const metadata = { title: "Reports" };
 
 export default async function ReportsPage() {
   const session = await requirePermission("reports.build");
+  await requireFeature("reports");
   const db = scopedDb(session.schoolId);
 
   // Only offer sources the caller could already open elsewhere — the builder

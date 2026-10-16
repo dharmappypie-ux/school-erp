@@ -275,7 +275,7 @@ Future<void> _seed(DatabaseExecutor db) async {
   }
 
   final prefs = [
-    ['attendance', 'Attendance alerts', 'When your child is marked absent', 'Academics', 1],
+    ['attendance', 'Attendance alerts', 'When an absence is recorded', 'Academics', 1],
     ['results', 'Results & report cards', 'New marks and published report cards', 'Academics', 1],
     ['homework', 'Homework', 'New assignments and due reminders', 'Academics', 1],
     ['fees', 'Fee reminders', 'Upcoming and overdue invoices', 'Fees', 1],

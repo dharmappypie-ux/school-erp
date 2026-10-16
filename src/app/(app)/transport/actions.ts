@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, requireFeature } from "@/lib/auth";
 import { scopedDb } from "@/lib/tenant";
 
 export interface ActionResult {
@@ -52,6 +52,7 @@ export async function saveVehicle(
   }
 
   const session = await requirePermission("transport.manage");
+  await requireFeature("transport");
   const db = scopedDb(session.schoolId);
   const editingId = raw.id?.trim() || null;
 
@@ -129,6 +130,7 @@ export async function saveRoute(
   }
 
   const session = await requirePermission("transport.manage");
+  await requireFeature("transport");
   const db = scopedDb(session.schoolId);
   const editingId = raw.id?.trim() || null;
 
@@ -197,6 +199,7 @@ export async function addStop(
   }
 
   const session = await requirePermission("transport.manage");
+  await requireFeature("transport");
   const db = scopedDb(session.schoolId);
 
   const route = await db.route.findUnique({
@@ -236,6 +239,7 @@ export async function addStop(
 
 export async function removeStop(stopId: string): Promise<ActionResult> {
   const session = await requirePermission("transport.manage");
+  await requireFeature("transport");
   const db = scopedDb(session.schoolId);
 
   // tenant-safe: reaches the tenant through the parent route's schoolId.

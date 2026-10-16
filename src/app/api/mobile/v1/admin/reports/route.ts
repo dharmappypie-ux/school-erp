@@ -14,7 +14,7 @@ export { OPTIONS } from "@/lib/mobile-auth";
  * web reports builder's source catalogue.
  */
 export async function GET(req: Request) {
-  const guard = await requireMobile(req, "reports.build");
+  const guard = await requireMobile(req, "reports.build", { feature: "reports" });
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 

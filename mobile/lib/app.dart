@@ -7,6 +7,7 @@ import 'theme/app_theme.dart';
 import 'ui/admin/admin_shell.dart';
 import 'ui/screens/change_password_screen.dart';
 import 'ui/screens/login_screen.dart';
+import 'ui/platform/platform_shell.dart';
 import 'ui/shell/home_shell.dart';
 import 'ui/teacher/teacher_shell.dart';
 
@@ -50,10 +51,14 @@ class VidyalayaApp extends ConsumerWidget {
               // it is. Not a pushed route: there is nothing to go back to.
               : auth.mustChangePassword
               ? const ChangePasswordScreen(forced: true)
+              // Which experience opens is the server's answer, not a choice
+              // made on the sign-in screen: the account's roles decide it.
               : switch (auth.role) {
+                  UserRole.owner => const PlatformShell(),
                   UserRole.admin => const AdminShell(),
                   UserRole.teacher => const TeacherShell(),
-                  UserRole.parent => const HomeShell(),
+                  UserRole.student => const HomeShell(role: UserRole.student),
+                  UserRole.parent => const HomeShell(role: UserRole.parent),
                 },
     );
   }

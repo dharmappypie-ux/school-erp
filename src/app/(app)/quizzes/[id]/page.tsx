@@ -14,7 +14,7 @@ import {
   Td,
   Th,
 } from "@/components/ui";
-import { requireAnyPermission } from "@/lib/auth";
+import { requireAnyPermission, requireFeature } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
 import { hasPermission } from "@/lib/permissions";
 import { QUIZ_STATUS_LABEL, QUIZ_STATUS_TONE, scorePercent } from "@/lib/quiz";
@@ -24,6 +24,7 @@ export const metadata = { title: "Quiz" };
 
 export default async function QuizDetailPage({ params }: PageProps<"/quizzes/[id]">) {
   const session = await requireAnyPermission(["quiz.read", "quiz.manage"]);
+  await requireFeature("lms");
   const { id } = await params;
   const db = scopedDb(session.schoolId);
 

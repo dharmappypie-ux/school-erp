@@ -5,7 +5,7 @@ import {
   type SectionOption,
 } from "@/app/(app)/students/promote/promotion-form";
 import { Alert, Card, CardHeader, EmptyState, PageHeader } from "@/components/ui";
-import { requirePermission } from "@/lib/auth";
+import { requireAnyPermission } from "@/lib/auth";
 import { scopedDb } from "@/lib/tenant";
 
 export const metadata = { title: "Promotion" };
@@ -13,7 +13,8 @@ export const metadata = { title: "Promotion" };
 export default async function PromotePage({
   searchParams,
 }: PageProps<"/students/promote">) {
-  const session = await requirePermission("students.update");
+  // Either permission reaches the rollover — see the note in navigation.ts.
+  const session = await requireAnyPermission(["students.update", "students.promote"]);
   const db = scopedDb(session.schoolId);
   const params = await searchParams;
   const sourceSectionId =

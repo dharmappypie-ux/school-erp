@@ -12,7 +12,7 @@ export { OPTIONS } from "@/lib/mobile-auth";
  * video, resources) and course-level resources. Mirror of the web course detail.
  */
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const guard = await requireMobile(req, ["lms.read", "lms.manage"]);
+  const guard = await requireMobile(req, ["lms.read", "lms.manage"], { feature: "lms" });
   if (guard instanceof NextResponse) return guard;
   const session = guard;
   const { id } = await ctx.params;

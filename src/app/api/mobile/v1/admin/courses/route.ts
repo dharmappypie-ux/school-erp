@@ -9,7 +9,7 @@ export { OPTIONS } from "@/lib/mobile-auth";
 
 /** GET /api/mobile/v1/admin/courses — courses with lesson counts. */
 export async function GET(req: Request) {
-  const guard = await requireMobile(req, ["lms.manage", "lms.publish", "lms.read"]);
+  const guard = await requireMobile(req, ["lms.manage", "lms.publish", "lms.read"], { feature: "lms" });
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 
@@ -41,7 +41,7 @@ const Schema = z.object({
 
 /** POST /api/mobile/v1/admin/courses — create a course (draft). */
 export async function POST(req: Request) {
-  const guard = await requireMobile(req, "lms.manage");
+  const guard = await requireMobile(req, "lms.manage", { feature: "lms" });
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 

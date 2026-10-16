@@ -7,7 +7,7 @@ export { OPTIONS } from "@/lib/mobile-auth";
 
 /** GET /api/mobile/v1/admin/transport — routes with their stops, to add to. */
 export async function GET(req: Request) {
-  const guard = await requireMobile(req, ["transport.manage", "transport.read"]);
+  const guard = await requireMobile(req, ["transport.manage", "transport.read"], { feature: "transport" });
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 

@@ -21,6 +21,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     session.permissions,
     session.roleKeys,
     session.studentId !== null || session.guardianId !== null,
+    session.school.plan,
   );
   const roleNames = session.roleKeys.map(
     (key) => ROLE_PRESET_BY_KEY.get(key)?.name ?? key,

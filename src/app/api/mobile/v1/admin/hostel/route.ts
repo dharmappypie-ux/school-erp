@@ -7,7 +7,7 @@ export { OPTIONS } from "@/lib/mobile-auth";
 
 /** GET /api/mobile/v1/admin/hostel — rooms (with free beds) + current allocations. */
 export async function GET(req: Request) {
-  const guard = await requireMobile(req, ["hostel.manage", "hostel.read"]);
+  const guard = await requireMobile(req, ["hostel.manage", "hostel.read"], { feature: "hostel" });
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 

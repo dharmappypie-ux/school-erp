@@ -17,7 +17,8 @@ type Item = {
   badge?: "good" | "warn" | "danger" | "muted";
 };
 
-const cap = (s: string) => (s ? s[0] + s.slice(1).toLowerCase().replace(/_/g, " ") : s);
+const cap = (s: string) =>
+  s ? s[0].toUpperCase() + s.slice(1).toLowerCase().replace(/_/g, " ") : s;
 const inr = (n: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
 const shortDate = (d: Date | null | undefined) =>
@@ -28,6 +29,25 @@ const TITLES: Record<string, string> = {
   timetable: "Timetable", notices: "Notices", messages: "Messages", quizzes: "Quizzes",
   library: "Library", transport: "Transport", reportcards: "Report cards", fees: "Fees",
   results: "Results", homework: "Homework", attendance: "Attendance",
+};
+
+/**
+ * What an empty list MEANS, per module. "Nothing here yet" is true of all of
+ * them and useful about none: not being on a bus route is a different fact
+ * from having no results published.
+ */
+const EMPTY_NOTES: Record<string, string> = {
+  transport: "Not assigned to a bus route.",
+  timetable: "No timetable published for this class yet.",
+  results: "No results published yet.",
+  reportcards: "No report cards published yet.",
+  homework: "No homework set.",
+  attendance: "No attendance recorded yet.",
+  quizzes: "No quizzes available yet.",
+  library: "The catalogue is empty.",
+  notices: "No notices published.",
+  messages: "No messages yet.",
+  fees: "No invoices raised yet.",
 };
 
 /**
@@ -62,7 +82,11 @@ export async function GET(req: Request, ctx: { params: Promise<{ name: string }>
   const title = TITLES[name] ?? cap(name);
   try {
     const items = await load(name, db, yearId, studentId, session.userId);
-    return cors(NextResponse.json({ title, items, note: items.length === 0 ? "Nothing here yet." : undefined }));
+    return cors(NextResponse.json({
+      title,
+      items,
+      note: items.length === 0 ? (EMPTY_NOTES[name] ?? "Nothing here yet.") : undefined,
+    }));
   } catch (e) {
     return cors(NextResponse.json({
       title, items: [] as Item[], note: "Nothing to show yet.",
@@ -202,7 +226,10 @@ async function load(
         where: { studentId, isActive: true }, take: 10,
         select: { direction: true, route: { select: { name: true, startPoint: true, endPoint: true } } },
       });
-      if (rows.length === 0) return [{ title: "No transport assigned", subtitle: "Your child isn't on a bus route", badge: "muted" }];
+      // An empty list, not a one-item placeholder: the screen counts what it is
+      // given, so a placeholder made "No transport assigned" read as "1 record".
+      // The screen shows its own empty state from `note`.
+      if (rows.length === 0) return [];
       return rows.map((r) => ({
         title: r.route.name,
         subtitle: [r.route.startPoint, r.route.endPoint].filter(Boolean).join(" → "),

@@ -14,7 +14,7 @@ import {
   Th,
   type Tone,
 } from "@/components/ui";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, requireFeature } from "@/lib/auth";
 import { formatDate, formatDateTime, formatMoney, initials, toNumber } from "@/lib/format";
 import { scopedDb } from "@/lib/tenant";
 import {
@@ -132,6 +132,7 @@ export default async function RoutePage({
   params,
 }: PageProps<"/transport/routes/[id]">) {
   const session = await requirePermission("transport.read");
+  await requireFeature("transport");
   const db = scopedDb(session.schoolId);
   const { id } = await params;
   const yearId = session.academicYear?.id;

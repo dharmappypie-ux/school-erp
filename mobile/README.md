@@ -1,9 +1,14 @@
 # Vidyalaya — mobile app (Flutter)
 
-An **offline-first** parent/student companion for the Vidyalaya school ERP, for
-**iOS and Android** from one Flutter codebase. The UI follows the reference
+An **offline-first** app for the whole Vidyalaya school ERP — parents, students,
+teachers, every school staff role and the platform owner — for **iOS and
+Android** from one Flutter codebase. The UI follows the reference
 video: a calm, minimal account app — warm off-white ground, deep-slate hero
 cards, white rounded cards, toggles and list rows, a single indigo accent.
+
+**What it covers:** every item in the web console's own navigation, for all five
+kinds of account — see [PARITY.md](PARITY.md) for the module-by-module record,
+the permission that reveals each one, and the honest list of gaps.
 
 ## Offline-first + sync
 
@@ -51,7 +56,12 @@ DB) · dio (HTTP) · connectivity_plus (auto-sync) · flutter_secure_storage
 
 ## Screens (mapped from the reference → school)
 
-- **Login** — email/password, works offline.
+- **Login** — one screen for every kind of account: email and password, no role
+  picker. The account's roles decide which experience opens (platform owner,
+  staff, teacher, student, parent), exactly as the web console's `/login` does.
+  A device that has signed in before re-opens its last experience offline; one
+  that never has cannot sign in at all, because only the server can say who an
+  email belongs to.
 - **Home** — slate profile card with term-average sparkline, attendance and fees
   stats, quick access to Attendance / Results / Homework / Courses, latest notices.
 - **Fees** — total-due hero, invoice cards with paid/overdue states, payment methods.

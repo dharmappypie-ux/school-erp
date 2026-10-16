@@ -18,7 +18,7 @@ const Schema = z.object({
 
 /** POST /api/mobile/v1/admin/courses/resource — attach a resource to a course/lesson (mirror of web addResource). */
 export async function POST(req: Request) {
-  const guard = await requireMobile(req, "lms.manage");
+  const guard = await requireMobile(req, "lms.manage", { feature: "lms" });
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 

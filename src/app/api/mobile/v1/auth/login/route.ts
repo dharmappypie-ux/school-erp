@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { prisma } from "@/lib/db";
+import { featuresFor } from "@/lib/entitlements";
 import { cors } from "@/lib/mobile-auth";
 import { verifyPassword } from "@/lib/password";
 import { createSession } from "@/lib/session";
@@ -34,7 +35,13 @@ export async function POST(req: Request) {
       deletedAt: null,
       school: school ? { slug: school, isActive: true } : { isActive: true },
     },
-    include: { roles: { select: { key: true } }, school: { select: { name: true, slug: true } } },
+    include: {
+      roles: { select: { key: true, permissions: true } },
+      school: { select: { name: true, slug: true, plan: true } },
+      student: { select: { id: true } },
+      guardian: { select: { id: true } },
+      staff: { select: { id: true } },
+    },
     take: 5,
   });
 
@@ -83,6 +90,22 @@ export async function POST(req: Request) {
         email: user.email,
         school: user.school.name,
         roles: user.roles.map((r) => r.key),
+        // The union of every role's permissions, so the app can build the same
+        // permission-filtered module list the web sidebar builds instead of
+        // guessing from a coarse role name. The server still authorises every
+        // request — this is UX, not the security boundary.
+        permissions: [...new Set(user.roles.flatMap((r) => r.permissions))],
+        // Which records the account is attached to. A staff account opens the
+        // staff experience; a student/guardian account opens the portal. Sent
+        // here so the first screen after sign-in is already the right one.
+        isStaff: user.staff != null,
+        isGuardian: user.guardian != null,
+        isStudent: user.student != null,
+        // The school's plan and the features it unlocks, so the app can hide
+        // tiles the plan doesn't include. The server still enforces each — this
+        // is UX, not the security boundary.
+        plan: user.school.plan,
+        features: featuresFor(user.school.plan),
       },
     }));
   }

@@ -80,7 +80,7 @@ async function gatherCandidates(
  * channel, mirroring the web `sendBroadcast`.
  */
 export async function POST(req: Request) {
-  const guard = await requireMobile(req, "notifications.send");
+  const guard = await requireMobile(req, "notifications.send", { feature: "broadcasts" });
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 

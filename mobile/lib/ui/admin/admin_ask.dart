@@ -49,7 +49,7 @@ class _S extends ConsumerState<AdminAskScreen> {
     final reading = (r?['reading'] as Map?)?.cast<String, dynamic>();
 
     return DetailScaffold(
-      title: 'Ask AI',
+      title: 'Ask your data',
       subtitle: 'Ask about your school data',
       icon: Icons.auto_awesome_rounded,
       children: [

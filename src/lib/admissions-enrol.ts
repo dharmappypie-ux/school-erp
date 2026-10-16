@@ -1,5 +1,10 @@
 import { nextAdmissionNumber, STATUS_LABEL } from "@/lib/admissions";
 import { recordAudit } from "@/lib/audit";
+import {
+  planAllowsAnotherStudent,
+  studentCapMessage,
+  type SubscriptionPlan,
+} from "@/lib/entitlements";
 import { queueNotification } from "@/lib/notifications";
 import { hashPassword } from "@/lib/password";
 import type { ScopedDb } from "@/lib/tenant";
@@ -13,6 +18,8 @@ export interface EnrolInput {
   actorUserId: string;
   applicationId: string;
   sectionId: string;
+  /** Caller's plan — enforces the per-plan student cap before enrolling. */
+  plan: SubscriptionPlan;
 }
 
 export interface EnrolResult {
@@ -65,6 +72,11 @@ export async function enrolApplicant(input: EnrolInput): Promise<EnrolResult> {
       ok: false,
       message: `Only accepted applications can be enrolled. This one is ${STATUS_LABEL[application.status].toLowerCase()}.`,
     };
+  }
+
+  const activeStudents = await db.student.count({ where: { deletedAt: null } });
+  if (!planAllowsAnotherStudent(input.plan, activeStudents)) {
+    return { ok: false, message: studentCapMessage(input.plan) };
   }
 
   const section = await db.section.findUnique({

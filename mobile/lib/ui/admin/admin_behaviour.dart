@@ -83,11 +83,15 @@ class AdminBehaviourScreen extends ConsumerWidget {
 
     return DetailScaffold(
       title: 'Behaviour',
+      // "Last 100 notes" sat above an empty list and claimed a hundred of them.
+      // Say what is actually loaded.
       subtitle: offline
           ? 'Not loaded'
           : waiting > 0
               ? '$waiting guardian${waiting == 1 ? '' : 's'} still to be told'
-              : 'Last 100 notes',
+              : items.isEmpty
+                  ? 'No notes recorded'
+                  : '${items.length} note${items.length == 1 ? '' : 's'}',
       icon: Icons.emoji_people_rounded,
       onRefresh: () async => ref.invalidate(behaviourListProvider),
       children: [

@@ -64,8 +64,16 @@ final sectionStudentsProvider = FutureProvider.autoDispose
 final adminOverviewProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/overview'));
 
+/// Reference data for the admin CREATE forms (sections to enrol into, the
+/// school's assignable roles, staff types). Gated on create permissions,
+/// because of the role list — a screen that only lists classes must use
+/// [adminSectionsProvider] instead.
 final adminMetaProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/meta'));
+
+/// The current year's classes, for anyone holding `academics.read`.
+final adminSectionsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/sections'));
 
 final adminStudentsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
     (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/students'));
@@ -291,6 +299,71 @@ final homeworkSubmissionsProvider = FutureProvider.autoDispose
     '/api/mobile/v1/teacher/homework/submissions',
     query: {'homeworkId': homeworkId},
   );
+});
+
+/// One stock item with its movement ledger.
+final inventoryItemProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, String>((ref, id) {
+  return ref.watch(apiProvider).getJson('/api/mobile/v1/admin/inventory/item/$id');
+});
+
+/// One report card in full — student, term, every subject line, attendance.
+final reportCardProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, String>((ref, id) {
+  return ref.watch(apiProvider).getJson('/api/mobile/v1/admin/reportcards/$id');
+});
+
+// ---- platform owner (cross-tenant) --------------------------------------
+
+/// Every school on the platform, with the roll-up the console shows.
+final platformSchoolsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/platform/schools'));
+
+/// One school and its administrators.
+final platformSchoolProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, String>((ref, id) {
+  return ref.watch(apiProvider).getJson('/api/mobile/v1/platform/schools/$id');
+});
+
+// ---- school administration ----------------------------------------------
+
+/// School profile, roles, years and the tail of the audit trail.
+final adminSettingsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/settings'));
+
+/// The audit trail, one page at a time.
+final adminAuditProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, ({int page, String? entityType})>((ref, a) {
+  return ref.watch(apiProvider).getJson('/api/mobile/v1/admin/audit', query: {
+    'page': '${a.page}',
+    if (a.entityType != null) 'entityType': a.entityType,
+  });
+});
+
+/// Roles with their permissions, plus the server's permission catalogue.
+final adminRolesProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/roles'));
+
+/// Promotion pickers, and one class's roll when a section is chosen.
+final adminPromoteProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, String?>((ref, sectionId) {
+  return ref.watch(apiProvider).getJson('/api/mobile/v1/admin/promote',
+      query: sectionId != null ? {'sectionId': sectionId} : null);
+});
+
+/// Families on the roll — the sibling report.
+final adminSiblingsProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/siblings'));
+
+/// Biometric / RFID attendance devices and their recent punches.
+final adminDevicesProvider = FutureProvider.autoDispose<Map<String, dynamic>?>(
+    (ref) => ref.watch(apiProvider).getJson('/api/mobile/v1/admin/devices'));
+
+/// The receipt ledger — every payment taken, newest first.
+final paymentsLedgerProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, String?>((ref, q) {
+  return ref.watch(apiProvider).getJson('/api/mobile/v1/admin/payments',
+      query: q != null && q.isNotEmpty ? {'q': q} : null);
 });
 
 /// Generic module reader — one endpoint per role serves every module's list.

@@ -63,7 +63,7 @@ const shortDate = (d: Date | null | undefined) =>
   d ? new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short" }).format(d) : "";
 
 const cap = (s: string) =>
-  s ? s[0] + s.slice(1).toLowerCase().replace(/_/g, " ") : s;
+  s ? s[0].toUpperCase() + s.slice(1).toLowerCase().replace(/_/g, " ") : s;
 
 /**
  * GET /api/mobile/v1/admin/module/[name]
@@ -112,6 +112,8 @@ function titleFor(name: string): string {
 }
 
 const TITLES: Record<string, string> = {
+  students: "Students",
+  staff: "Staff",
   admissions: "Admissions",
   classes: "Classes & subjects",
   subjects: "Subjects",

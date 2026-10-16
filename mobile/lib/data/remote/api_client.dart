@@ -209,6 +209,33 @@ class ApiClient {
     }
   }
 
+  /// POST a file to an authed endpoint as multipart/form-data under the field
+  /// name `file` — the shape the bulk-import endpoints share with the web
+  /// console's upload form. Bytes rather than a path, because the web build has
+  /// no filesystem to point at.
+  Future<({bool ok, Map<String, dynamic>? body})> postFile(
+    String path, {
+    required List<int> bytes,
+    required String filename,
+  }) async {
+    try {
+      final form = FormData.fromMap({
+        'file': MultipartFile.fromBytes(bytes, filename: filename),
+      });
+      final res = await _dio.post(path, data: form, options: _auth);
+      _check(res.statusCode, res.data);
+      final body = res.data is Map ? Map<String, dynamic>.from(res.data as Map) : null;
+      return (ok: res.statusCode == 200, body: body);
+    } on DioException catch (e) {
+      final body = e.response?.data is Map
+          ? Map<String, dynamic>.from(e.response!.data as Map)
+          : null;
+      return (ok: false, body: body);
+    } catch (_) {
+      return (ok: false, body: null);
+    }
+  }
+
   /// POST JSON to an authed endpoint. Returns `(ok, body)` so the caller can
   /// surface the server's message on both success and validation failure.
   Future<({bool ok, Map<String, dynamic>? body})> postJson(

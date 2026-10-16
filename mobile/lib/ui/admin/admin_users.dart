@@ -57,10 +57,15 @@ class AdminUsersScreen extends ConsumerWidget {
     final items = (async.value?['items'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
     final roles = (async.value?['roles'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
     final canManageRoles = async.value?['canManageRoles'] == true;
+    final total = (async.value?['total'] as num?)?.toInt();
 
     return DetailScaffold(
       title: 'Users',
-      subtitle: '${items.length} logins',
+      // The endpoint pages; printing the page length as the count made 755
+      // users read as 200. Say both, as the students screen does.
+      subtitle: total == null || total == items.length
+          ? '${items.length} logins'
+          : '${items.length} of $total logins',
       icon: Icons.manage_accounts_rounded,
       onRefresh: () async => ref.invalidate(adminUsersProvider),
       fab: FloatingActionButton.extended(

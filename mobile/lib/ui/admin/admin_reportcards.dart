@@ -5,6 +5,7 @@ import '../../state/providers.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/form_widgets.dart';
 import '../widgets/widgets.dart';
+import 'report_card_detail.dart';
 
 /// Report cards: see each card's result and publish/unpublish it to parents.
 class AdminReportCardsScreen extends ConsumerWidget {
@@ -151,6 +152,13 @@ class _CardRowState extends ConsumerState<_CardRow> {
     final c = widget.c;
     final published = c['published'] == true;
     return AppCard(
+      // Tapping opens the card itself; the publish control stays a separate hit
+      // target so a tap meant for the document never publishes it.
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => ReportCardDetailScreen(
+                cardId: c['id'].toString(),
+                student: c['student']?.toString() ?? 'Report card',
+              ))),
       child: Row(children: [
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(c['student']?.toString() ?? '', style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700)),

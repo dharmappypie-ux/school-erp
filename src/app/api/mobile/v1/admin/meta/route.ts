@@ -8,9 +8,14 @@ export { OPTIONS } from "@/lib/mobile-auth";
 /**
  * GET /api/mobile/v1/admin/meta
  *
- * Reference data for the admin create forms: the current sections (for
+ * Reference data for the admin CREATE forms: the current sections (for
  * enrolling a student), the school's assignable roles (for new staff/users),
  * and the fixed staff-type options.
+ *
+ * Gated on create permissions because of the role list: handing the school's
+ * assignable roles to anyone who may merely read is how a bulk path becomes a
+ * back door around role management. A screen that only needs to LIST classes
+ * reads `admin/sections` instead, which asks for `academics.read`.
  */
 export async function GET(req: Request) {
   const guard = await requireMobile(req, ["students.create", "staff.create", "users.create", "academics.manage"]);

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -17,6 +19,10 @@ Future<void> main() async {
   final api = ApiClient();
   final auth = AuthController(api, const FlutterSecureStorage());
   await auth.restore();
+  // Not awaited: the stored session is enough to draw the first frame, and the
+  // refresh only corrects it (a role edited since the last sign-in) once the
+  // server answers. Awaiting it would hold the splash on a slow connection.
+  unawaited(auth.refreshSession());
 
   runApp(
     ProviderScope(

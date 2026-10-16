@@ -9,7 +9,7 @@ import {
   PageHeader,
   StatTile,
 } from "@/components/ui";
-import { requireAnyPermission } from "@/lib/auth";
+import { requireAnyPermission, requireFeature } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { QUIZ_STATUS_LABEL, QUIZ_STATUS_TONE } from "@/lib/quiz";
 import { scopedDb } from "@/lib/tenant";
@@ -18,6 +18,7 @@ export const metadata = { title: "Quizzes" };
 
 export default async function QuizzesPage() {
   const session = await requireAnyPermission(["quiz.read", "quiz.manage"]);
+  await requireFeature("lms");
   const db = scopedDb(session.schoolId);
 
   const [quizzes, classLevels, subjects, teachers] = await Promise.all([

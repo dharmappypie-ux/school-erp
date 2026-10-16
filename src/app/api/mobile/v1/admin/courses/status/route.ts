@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   }
   const { courseId, status } = parsed.data;
 
-  const guard = await requireMobile(req, status === "PUBLISHED" ? "lms.publish" : "lms.manage");
+  const guard = await requireMobile(req, status === "PUBLISHED" ? "lms.publish" : "lms.manage", { feature: "lms" });
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 

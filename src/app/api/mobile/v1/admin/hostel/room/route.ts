@@ -18,7 +18,7 @@ const Schema = z.object({
 
 /** POST /api/mobile/v1/admin/hostel/room — add a room to a block (mirror of web addRoom). */
 export async function POST(req: Request) {
-  const guard = await requireMobile(req, "hostel.manage");
+  const guard = await requireMobile(req, "hostel.manage", { feature: "hostel" });
   if (guard instanceof NextResponse) return guard;
   const session = guard;
 

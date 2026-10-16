@@ -3,7 +3,14 @@ import "server-only";
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
-import { hasPermission } from "@/lib/permissions";
+import {
+  hasFeature,
+  requiredPlanFor,
+  PLAN_LABEL,
+  type Feature,
+} from "@/lib/entitlements";
+import { SubscriptionPlan } from "@/generated/prisma/enums";
+import { hasPermission, isPlatformAdmin } from "@/lib/permissions";
 import { hashSessionToken } from "@/lib/session";
 
 /**
@@ -50,6 +57,8 @@ export interface MobileSession {
   academicYearId: string | null;
   roleKeys: string[];
   permissions: string[];
+  /** Commercial tier — gates optional features via `@/lib/entitlements`. */
+  plan: SubscriptionPlan;
   /**
    * The account still holds the temporary password it was created with. The web
    * app blocks every page until it is replaced; the mobile API must refuse the
@@ -76,16 +85,40 @@ export function passwordChangeRequired(): NextResponse {
 }
 
 /**
- * Guard a mobile route by permission. Returns either the resolved session or a
- * ready-to-return CORS JSON error (401 if unauthenticated, 403 if the signed-in
- * user lacks every one of `anyOf`). Usage:
- *   const g = await requireMobile(req, "homework.manage");
+ * Returned when the user may do the action but their school's plan does not
+ * include the feature. The client keys on `code` to show an upgrade prompt
+ * rather than a bare permission error, and `requiredPlan` tells it which tier
+ * unlocks it.
+ */
+export function upgradeRequired(feature: Feature): NextResponse {
+  const plan = requiredPlanFor(feature);
+  return cors(
+    NextResponse.json(
+      {
+        error: `This is a ${PLAN_LABEL[plan]} feature. Ask your administrator to upgrade the plan.`,
+        code: "UPGRADE_REQUIRED",
+        feature,
+        requiredPlan: plan,
+      },
+      { status: 403 },
+    ),
+  );
+}
+
+/**
+ * Guard a mobile route by permission, and optionally by subscription plan.
+ * Returns either the resolved session or a ready-to-return CORS JSON error (401
+ * if unauthenticated, 403 if the signed-in user lacks every one of `anyOf`, or
+ * 403 `UPGRADE_REQUIRED` if `opts.feature` is set and the school's plan does not
+ * include it). Usage:
+ *   const g = await requireMobile(req, "lms.manage", { feature: "lms" });
  *   if (g instanceof NextResponse) return g;
  *   // g is the MobileSession
  */
 export async function requireMobile(
   req: Request,
   anyOf: string | string[] = [],
+  opts: { feature?: Feature } = {},
 ): Promise<MobileSession | NextResponse> {
   const session = await resolveMobileSession(req);
   if (!session) {
@@ -97,12 +130,41 @@ export async function requireMobile(
   if (session.mustChangePassword) return passwordChangeRequired();
 
   const needed = Array.isArray(anyOf) ? anyOf : [anyOf];
-  // No permission requested → any valid session is enough (child-scoped routes).
-  if (needed.length === 0) return session;
-  const ok = needed.some((p) => hasPermission(session.permissions, p));
-  if (!ok) {
+  // Permission is checked before plan: not having the role at all is the more
+  // fundamental "no", and a plan upsell shouldn't leak which actions exist.
+  if (needed.length > 0) {
+    const ok = needed.some((p) => hasPermission(session.permissions, p));
+    if (!ok) {
+      return cors(NextResponse.json(
+        { error: "You don't have permission to do that." },
+        { status: 403 },
+      ));
+    }
+  }
+  if (opts.feature && !hasFeature(session.plan, opts.feature)) {
+    return upgradeRequired(opts.feature);
+  }
+  return session;
+}
+
+/**
+ * Guard a mobile route as a PLATFORM OWNER — the tier above any single school.
+ *
+ * Gated on the explicit `PLATFORM_ADMIN` role key, never on a permission: the
+ * `"*"` wildcard that every school super admin holds must not unlock the
+ * cross-tenant console. This is the mobile twin of `requirePlatformAdmin()`.
+ */
+export async function requireMobilePlatformAdmin(
+  req: Request,
+): Promise<MobileSession | NextResponse> {
+  const session = await resolveMobileSession(req);
+  if (!session) {
+    return cors(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
+  }
+  if (session.mustChangePassword) return passwordChangeRequired();
+  if (!isPlatformAdmin(session.roleKeys)) {
     return cors(NextResponse.json(
-      { error: "You don't have permission to do that." },
+      { error: "This is the platform owner's console." },
       { status: 403 },
     ));
   }
@@ -128,7 +190,7 @@ export async function resolveMobileSession(
       user: {
         include: {
           roles: true,
-          school: { select: { isActive: true, name: true } },
+          school: { select: { isActive: true, name: true, plan: true } },
           student: { select: { id: true } },
           guardian: { select: { id: true } },
           staff: { select: { id: true } },
@@ -158,6 +220,7 @@ export async function resolveMobileSession(
     academicYearId: year?.id ?? null,
     roleKeys: user.roles.map((r) => r.key),
     permissions: [...new Set(user.roles.flatMap((r) => r.permissions))],
+    plan: user.school.plan,
     mustChangePassword: user.mustChangePassword,
   };
 }
